@@ -52,14 +52,14 @@ const PortfolioSlugRoute = PortfolioSlugRouteImport.update({
   getParentRoute: () => PortfolioRoute,
 } as any)
 const LoginMembroRoute = LoginMembroRouteImport.update({
-  id: '/membro',
-  path: '/membro',
-  getParentRoute: () => LoginRoute,
+  id: '/login/membro',
+  path: '/login/membro',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LoginClienteRoute = LoginClienteRouteImport.update({
-  id: '/cliente',
-  path: '/cliente',
-  getParentRoute: () => LoginRoute,
+  id: '/login/cliente',
+  path: '/login/cliente',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
@@ -174,6 +174,8 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   PortfolioRoute: typeof PortfolioRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  LoginClienteRoute: typeof LoginClienteRoute
+  LoginMembroRoute: typeof LoginMembroRoute
   LoginIndexRoute: typeof LoginIndexRoute
 }
 
@@ -223,17 +225,17 @@ declare module '@tanstack/react-router' {
     }
     '/login/membro': {
       id: '/login/membro'
-      path: '/membro'
+      path: '/login/membro'
       fullPath: '/login/membro'
       preLoaderRoute: typeof LoginMembroRouteImport
-      parentRoute: typeof LoginRoute
+      parentRoute: typeof rootRouteImport
     }
     '/login/cliente': {
       id: '/login/cliente'
-      path: '/cliente'
+      path: '/login/cliente'
       fullPath: '/login/cliente'
       preLoaderRoute: typeof LoginClienteRouteImport
-      parentRoute: typeof LoginRoute
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
@@ -323,18 +325,10 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   PortfolioRoute: PortfolioRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  LoginClienteRoute: LoginClienteRoute,
+  LoginMembroRoute: LoginMembroRoute,
   LoginIndexRoute: LoginIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
