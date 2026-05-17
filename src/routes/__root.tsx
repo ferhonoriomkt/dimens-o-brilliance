@@ -88,6 +88,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Dimensão Coberturas — Do design à proteção" },
+      { name: "description", content: "Dimensão Coberturas | Site & CRM is a modern, responsive website and CRM for a construction company." },
+      { property: "og:description", content: "Dimensão Coberturas | Site & CRM is a modern, responsive website and CRM for a construction company." },
+      { name: "twitter:description", content: "Dimensão Coberturas | Site & CRM is a modern, responsive website and CRM for a construction company." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4bbad1ca-120d-4f6a-9d99-14ca86d01a08/id-preview-78d2729a--2f28bce8-b408-4b91-b064-2451c72379f0.lovable.app-1779059363259.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4bbad1ca-120d-4f6a-9d99-14ca86d01a08/id-preview-78d2729a--2f28bce8-b408-4b91-b064-2451c72379f0.lovable.app-1779059363259.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
