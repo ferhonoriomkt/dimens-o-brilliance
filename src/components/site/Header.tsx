@@ -96,12 +96,23 @@ export function Header() {
               ))}
               <Button
                 asChild
+                variant="outline"
                 size="lg"
-                className="font-display font-bold uppercase tracking-wider mt-4"
+                className="font-display font-bold uppercase tracking-wider mt-4 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
               >
                 <a href="#contato" onClick={() => setOpen(false)}>
                   Solicite orçamento
                 </a>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                className="font-display font-bold uppercase tracking-wider"
+              >
+                <Link to="/login" onClick={() => setOpen(false)}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Entrar
+                </Link>
               </Button>
             </div>
           </SheetContent>
