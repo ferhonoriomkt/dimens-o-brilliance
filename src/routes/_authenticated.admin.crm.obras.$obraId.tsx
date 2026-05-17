@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Check, Trash2, Pencil, CheckCircle2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ function ObraDetail() {
   const { obraId } = Route.useParams();
   const qc = useQueryClient();
   const perms = useObraPermissions(obraId);
+  const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ["crm", "obra", obraId],
@@ -98,6 +99,19 @@ function ObraDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteObra = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("crm_obras").delete().eq("id", obraId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Obra excluída");
+      qc.invalidateQueries({ queryKey: ["crm", "obras"] });
+      navigate({ to: "/admin/crm" });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Carregando...</div>;
   if (!data?.obra) return (
     <div className="p-6 text-sm text-muted-foreground">
@@ -151,6 +165,19 @@ function ObraDetail() {
               ) : (
                 <Button size="sm" onClick={() => { if (confirm("Marcar esta obra como concluída?")) toggleObraStatus.mutate("concluida"); }}>
                   <CheckCircle2 className="h-4 w-4" /> Concluir obra
+                </Button>
+              )}
+              {perms.isAdmin && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm(`Excluir definitivamente a obra "${obra.nome}"? Esta ação não pode ser desfeita.`)) {
+                      deleteObra.mutate();
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" /> Excluir obra
                 </Button>
               )}
             </div>
