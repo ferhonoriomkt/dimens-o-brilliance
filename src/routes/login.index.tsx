@@ -23,7 +23,7 @@ function LoginPage() {
             <img
               src={logoHorizontal}
               alt="Dimensão Coberturas"
-              className="h-14 w-auto mx-auto bg-white/95 px-4 py-2 rounded-md"
+              className="h-20 w-auto mx-auto bg-white/95 px-4 py-2 rounded-md"
             />
             <h1 className="mt-8 font-display font-bold text-3xl md:text-4xl">
               Acessar Dimensão
