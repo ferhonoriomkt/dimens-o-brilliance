@@ -43,7 +43,7 @@ function LoginPage() {
               </div>
               <h2 className="mt-5 font-display font-bold text-xl">Sou Membro</h2>
               <p className="mt-2 text-sm text-white/70 leading-relaxed">
-                Equipe Dimensão — acesse o CRM e o painel administrativo do site.
+                Acesso ao sistema.
               </p>
               <span className="mt-5 inline-block text-sm font-display font-semibold uppercase tracking-wider text-accent group-hover:underline">
                 Entrar →
