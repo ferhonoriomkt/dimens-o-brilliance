@@ -18,6 +18,7 @@ import { Route as LoginMembroRouteImport } from './routes/login.membro'
 import { Route as LoginClienteRouteImport } from './routes/login.cliente'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated.admin'
 import { Route as AuthenticatedAdminPortfolioRouteImport } from './routes/_authenticated.admin.portfolio'
+import { Route as AuthenticatedAdminPortfolioIdRouteImport } from './routes/_authenticated.admin.portfolio.$id'
 
 const PortfolioRoute = PortfolioRouteImport.update({
   id: '/portfolio',
@@ -64,6 +65,12 @@ const AuthenticatedAdminPortfolioRoute =
     path: '/portfolio',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminPortfolioIdRoute =
+  AuthenticatedAdminPortfolioIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAdminPortfolioRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,7 +80,8 @@ export interface FileRoutesByFullPath {
   '/login/cliente': typeof LoginClienteRoute
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
-  '/admin/portfolio': typeof AuthenticatedAdminPortfolioRoute
+  '/admin/portfolio': typeof AuthenticatedAdminPortfolioRouteWithChildren
+  '/admin/portfolio/$id': typeof AuthenticatedAdminPortfolioIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -83,7 +91,8 @@ export interface FileRoutesByTo {
   '/login/cliente': typeof LoginClienteRoute
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
-  '/admin/portfolio': typeof AuthenticatedAdminPortfolioRoute
+  '/admin/portfolio': typeof AuthenticatedAdminPortfolioRouteWithChildren
+  '/admin/portfolio/$id': typeof AuthenticatedAdminPortfolioIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -95,7 +104,8 @@ export interface FileRoutesById {
   '/login/cliente': typeof LoginClienteRoute
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
-  '/_authenticated/admin/portfolio': typeof AuthenticatedAdminPortfolioRoute
+  '/_authenticated/admin/portfolio': typeof AuthenticatedAdminPortfolioRouteWithChildren
+  '/_authenticated/admin/portfolio/$id': typeof AuthenticatedAdminPortfolioIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/login/membro'
     | '/portfolio/$slug'
     | '/admin/portfolio'
+    | '/admin/portfolio/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/login/membro'
     | '/portfolio/$slug'
     | '/admin/portfolio'
+    | '/admin/portfolio/$id'
   id:
     | '__root__'
     | '/'
@@ -129,6 +141,7 @@ export interface FileRouteTypes {
     | '/login/membro'
     | '/portfolio/$slug'
     | '/_authenticated/admin/portfolio'
+    | '/_authenticated/admin/portfolio/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -203,15 +216,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPortfolioRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/portfolio/$id': {
+      id: '/_authenticated/admin/portfolio/$id'
+      path: '/$id'
+      fullPath: '/admin/portfolio/$id'
+      preLoaderRoute: typeof AuthenticatedAdminPortfolioIdRouteImport
+      parentRoute: typeof AuthenticatedAdminPortfolioRoute
+    }
   }
 }
 
+interface AuthenticatedAdminPortfolioRouteChildren {
+  AuthenticatedAdminPortfolioIdRoute: typeof AuthenticatedAdminPortfolioIdRoute
+}
+
+const AuthenticatedAdminPortfolioRouteChildren: AuthenticatedAdminPortfolioRouteChildren =
+  {
+    AuthenticatedAdminPortfolioIdRoute: AuthenticatedAdminPortfolioIdRoute,
+  }
+
+const AuthenticatedAdminPortfolioRouteWithChildren =
+  AuthenticatedAdminPortfolioRoute._addFileChildren(
+    AuthenticatedAdminPortfolioRouteChildren,
+  )
+
 interface AuthenticatedAdminRouteChildren {
-  AuthenticatedAdminPortfolioRoute: typeof AuthenticatedAdminPortfolioRoute
+  AuthenticatedAdminPortfolioRoute: typeof AuthenticatedAdminPortfolioRouteWithChildren
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
-  AuthenticatedAdminPortfolioRoute: AuthenticatedAdminPortfolioRoute,
+  AuthenticatedAdminPortfolioRoute:
+    AuthenticatedAdminPortfolioRouteWithChildren,
 }
 
 const AuthenticatedAdminRouteWithChildren =
