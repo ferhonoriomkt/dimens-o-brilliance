@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import logoHorizontal from "@/assets/logo-horizontal.png";
+import logoHorizontalInvertido from "@/assets/logo-horizontal-invertido.png";
 
 const links = [
   { href: "#sobre", label: "Sobre Nós" },
@@ -34,7 +35,7 @@ export function Header() {
       <div className="container mx-auto flex h-20 items-center justify-between px-4 md:px-8">
         <a href="#top" className="flex items-center" aria-label="Dimensão Coberturas — Início">
           <img
-            src={logoHorizontal}
+            src={scrolled ? logoHorizontal : logoHorizontalInvertido}
             alt="Dimensão Coberturas"
             className="h-10 md:h-12 w-auto"
             width={240}
@@ -47,30 +48,27 @@ export function Header() {
             <a
               key={l.href}
               href={l.href}
-              className="font-display font-semibold text-sm uppercase tracking-wider text-foreground/80 hover:text-primary transition-colors relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:bg-accent after:transition-all hover:after:w-full"
+              className={`font-display font-semibold text-sm uppercase tracking-wider transition-colors relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:bg-accent after:transition-all hover:after:w-full hover:text-accent ${
+                scrolled ? "text-foreground/80" : "text-white/90"
+              }`}
             >
               {l.label}
             </a>
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center">
           <Button
             asChild
-            variant="outline"
-            size="lg"
-            className="font-display font-bold uppercase tracking-wider border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all hover:-translate-y-0.5"
-          >
-            <a href="#contato">Solicite orçamento</a>
-          </Button>
-          <Button
-            asChild
-            size="lg"
-            className="font-display font-bold uppercase tracking-wider shadow-elevated hover:-translate-y-0.5 transition-transform"
+            variant="ghost"
+            size="sm"
+            className={`font-display font-semibold uppercase tracking-wider text-xs hover:bg-transparent ${
+              scrolled ? "text-foreground/70 hover:text-primary" : "text-white/80 hover:text-accent"
+            }`}
           >
             <Link to="/login">
-              <LogIn className="h-4 w-4 mr-2" />
-              Entrar
+              <LogIn className="h-3.5 w-3.5 mr-1.5" />
+              Login
             </Link>
           </Button>
         </div>
@@ -96,22 +94,13 @@ export function Header() {
               ))}
               <Button
                 asChild
-                variant="outline"
-                size="lg"
-                className="font-display font-bold uppercase tracking-wider mt-4 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <a href="#contato" onClick={() => setOpen(false)}>
-                  Solicite orçamento
-                </a>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                className="font-display font-bold uppercase tracking-wider"
+                variant="ghost"
+                size="sm"
+                className="font-display font-semibold uppercase tracking-wider mt-4 justify-start text-white/80 hover:text-accent hover:bg-transparent"
               >
                 <Link to="/login" onClick={() => setOpen(false)}>
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Entrar
+                  <LogIn className="h-3.5 w-3.5 mr-1.5" />
+                  Login
                 </Link>
               </Button>
             </div>
