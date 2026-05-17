@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Check, Trash2, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, Check, Trash2, Pencil, CheckCircle2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { PlanejamentoItemForm } from "@/components/crm/PlanejamentoItemForm";
 import { ObraDashboard } from "@/components/crm/ObraDashboard";
 import { useObraPermissions } from "@/components/crm/use-obra-permissions";
 import {
-  fmtBRL, fmtDate, statusItemBadge, statusItemLabel, tipoItemLabel,
+  fmtBRL, fmtDate, statusItemBadge, statusItemLabel, statusObraBadge, statusObraLabel, tipoItemLabel,
 } from "@/components/crm/crm-utils";
 
 export const Route = createFileRoute("/_authenticated/admin/crm/obras/$obraId")({
@@ -85,6 +85,19 @@ function ObraDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const toggleObraStatus = useMutation({
+    mutationFn: async (newStatus: "concluida" | "em_andamento") => {
+      const { error } = await supabase.from("crm_obras").update({ status: newStatus }).eq("id", obraId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      toast.success(v === "concluida" ? "Obra concluída" : "Obra reaberta");
+      qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] });
+      qc.invalidateQueries({ queryKey: ["crm", "obras"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground">Carregando...</div>;
   if (!data?.obra) return (
     <div className="p-6 text-sm text-muted-foreground">
@@ -106,19 +119,43 @@ function ObraDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/admin/crm"><ArrowLeft className="h-4 w-4" /> Voltar</Link>
-          </Button>
-          <h1 className="font-display font-bold text-2xl">{obra.nome}</h1>
-        </div>
-        {perms.canEdit && (
-          <ObraForm
-            trigger={<Button variant="outline" size="sm"><Pencil className="h-4 w-4" /> Editar obra</Button>}
-            obra={obra}
-          />
+      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-card">
+        {obra.cover_image_url && (
+          <div className="aspect-[21/6] w-full bg-muted">
+            <img src={obra.cover_image_url} alt={obra.nome} className="h-full w-full object-cover" />
+          </div>
         )}
+        <div className="p-5 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/admin/crm"><ArrowLeft className="h-4 w-4" /> Voltar</Link>
+            </Button>
+            <div className="min-w-0">
+              <h1 className="font-display font-bold text-2xl truncate">{obra.nome}</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="secondary" className={statusObraBadge[obra.status]}>{statusObraLabel[obra.status]}</Badge>
+                {obra.cliente_nome && <span className="text-sm text-muted-foreground truncate">{obra.cliente_nome}</span>}
+              </div>
+            </div>
+          </div>
+          {perms.canEdit && (
+            <div className="flex gap-2 flex-wrap">
+              <ObraForm
+                trigger={<Button variant="outline" size="sm"><Pencil className="h-4 w-4" /> Editar</Button>}
+                obra={obra}
+              />
+              {obra.status === "concluida" ? (
+                <Button variant="outline" size="sm" onClick={() => toggleObraStatus.mutate("em_andamento")}>
+                  <RotateCcw className="h-4 w-4" /> Reabrir obra
+                </Button>
+              ) : (
+                <Button size="sm" onClick={() => { if (confirm("Marcar esta obra como concluída?")) toggleObraStatus.mutate("concluida"); }}>
+                  <CheckCircle2 className="h-4 w-4" /> Concluir obra
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="visao">
