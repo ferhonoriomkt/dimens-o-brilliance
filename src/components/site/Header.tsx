@@ -54,13 +54,24 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden md:flex items-center gap-3">
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="font-display font-bold uppercase tracking-wider border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all hover:-translate-y-0.5"
+          >
+            <a href="#contato">Solicite orçamento</a>
+          </Button>
           <Button
             asChild
             size="lg"
             className="font-display font-bold uppercase tracking-wider shadow-elevated hover:-translate-y-0.5 transition-transform"
           >
-            <a href="#contato">Solicite orçamento</a>
+            <Link to="/login">
+              <LogIn className="h-4 w-4 mr-2" />
+              Entrar
+            </Link>
           </Button>
         </div>
 
