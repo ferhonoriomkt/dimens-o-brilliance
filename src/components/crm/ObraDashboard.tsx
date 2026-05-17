@@ -168,9 +168,9 @@ export function ObraDashboard({ obra, canViewFinancial }: Props) {
               {canViewFinancial && <YAxis yAxisId="right" orientation="right" />}
               <Tooltip />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="fisicaAcum" name="Itens (acum.)" stroke="hsl(var(--primary))" strokeWidth={2} />
+              <Line yAxisId="left" type="monotone" dataKey="fisicaAcum" name="Itens (acum.)" stroke="oklch(0.555 0.244 265)" strokeWidth={2} />
               {canViewFinancial && (
-                <Line yAxisId="right" type="monotone" dataKey="financeiraAcum" name="Custo (acum.)" stroke="hsl(var(--accent))" strokeWidth={2} />
+                <Line yAxisId="right" type="monotone" dataKey="financeiraAcum" name="Custo (acum.)" stroke="oklch(0.745 0.131 78)" strokeWidth={2} />
               )}
             </LineChart>
           </ResponsiveContainer>
