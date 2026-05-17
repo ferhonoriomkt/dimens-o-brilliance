@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Images, Briefcase } from "lucide-react";
+import { Images, Briefcase, Shield } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminHome,
@@ -18,6 +18,14 @@ function AdminHome() {
           </div>
           <h2 className="mt-4 font-display font-bold text-lg group-hover:text-primary transition-colors">Portfólio</h2>
           <p className="mt-1 text-sm text-muted-foreground">Cadastrar e editar projetos exibidos no site.</p>
+        </Link>
+
+        <Link to="/admin/usuarios" className="group rounded-xl border border-border bg-card p-6 shadow-card transition-all hover:shadow-elevated hover:-translate-y-0.5">
+          <div className="h-11 w-11 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+            <Shield className="h-5 w-5" />
+          </div>
+          <h2 className="mt-4 font-display font-bold text-lg group-hover:text-primary transition-colors">Usuários</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Promova ou rebaixe membros e clientes do sistema.</p>
         </Link>
 
         <div className="rounded-xl border border-dashed border-border bg-card/50 p-6">
