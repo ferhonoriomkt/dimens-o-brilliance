@@ -48,6 +48,7 @@ function AuthenticatedLayout() {
           </Link>
           <nav className="flex items-center gap-6">
             <Link to="/admin" className="text-sm font-display font-semibold hover:text-accent transition-colors">Início</Link>
+            <Link to="/admin/crm" className="text-sm font-display font-semibold hover:text-accent transition-colors">CRM</Link>
             <Link to="/admin/portfolio" className="text-sm font-display font-semibold hover:text-accent transition-colors">Portfólio</Link>
             <Link to="/admin/usuarios" className="text-sm font-display font-semibold hover:text-accent transition-colors">Usuários</Link>
             <span className="text-xs text-white/60 hidden md:inline">{user?.email}</span>
