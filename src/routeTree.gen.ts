@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PortfolioSlugRouteImport } from './routes/portfolio.$slug'
 import { Route as LoginMembroRouteImport } from './routes/login.membro'
+import { Route as LoginClienteRouteImport } from './routes/login.cliente'
 
 const PortfolioRoute = PortfolioRouteImport.update({
   id: '/portfolio',
@@ -40,11 +41,17 @@ const LoginMembroRoute = LoginMembroRouteImport.update({
   path: '/membro',
   getParentRoute: () => LoginRoute,
 } as any)
+const LoginClienteRoute = LoginClienteRouteImport.update({
+  id: '/cliente',
+  path: '/cliente',
+  getParentRoute: () => LoginRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRouteWithChildren
   '/portfolio': typeof PortfolioRouteWithChildren
+  '/login/cliente': typeof LoginClienteRoute
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRouteWithChildren
   '/portfolio': typeof PortfolioRouteWithChildren
+  '/login/cliente': typeof LoginClienteRoute
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
 }
@@ -60,6 +68,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRouteWithChildren
   '/portfolio': typeof PortfolioRouteWithChildren
+  '/login/cliente': typeof LoginClienteRoute
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
 }
@@ -69,15 +78,23 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/portfolio'
+    | '/login/cliente'
     | '/login/membro'
     | '/portfolio/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/portfolio' | '/login/membro' | '/portfolio/$slug'
+  to:
+    | '/'
+    | '/login'
+    | '/portfolio'
+    | '/login/cliente'
+    | '/login/membro'
+    | '/portfolio/$slug'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/portfolio'
+    | '/login/cliente'
     | '/login/membro'
     | '/portfolio/$slug'
   fileRoutesById: FileRoutesById
@@ -125,14 +142,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginMembroRouteImport
       parentRoute: typeof LoginRoute
     }
+    '/login/cliente': {
+      id: '/login/cliente'
+      path: '/cliente'
+      fullPath: '/login/cliente'
+      preLoaderRoute: typeof LoginClienteRouteImport
+      parentRoute: typeof LoginRoute
+    }
   }
 }
 
 interface LoginRouteChildren {
+  LoginClienteRoute: typeof LoginClienteRoute
   LoginMembroRoute: typeof LoginMembroRoute
 }
 
 const LoginRouteChildren: LoginRouteChildren = {
+  LoginClienteRoute: LoginClienteRoute,
   LoginMembroRoute: LoginMembroRoute,
 }
 
