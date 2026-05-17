@@ -18,6 +18,7 @@ import { Route as PortfolioSlugRouteImport } from './routes/portfolio.$slug'
 import { Route as LoginMembroRouteImport } from './routes/login.membro'
 import { Route as LoginClienteRouteImport } from './routes/login.cliente'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated.admin'
+import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated.admin.usuarios'
 import { Route as AuthenticatedAdminPortfolioRouteImport } from './routes/_authenticated.admin.portfolio'
 import { Route as AuthenticatedAdminPortfolioIdRouteImport } from './routes/_authenticated.admin.portfolio.$id'
 
@@ -65,6 +66,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAdminUsuariosRoute =
+  AuthenticatedAdminUsuariosRouteImport.update({
+    id: '/usuarios',
+    path: '/usuarios',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminPortfolioRoute =
   AuthenticatedAdminPortfolioRouteImport.update({
     id: '/portfolio',
@@ -88,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
   '/admin/portfolio': typeof AuthenticatedAdminPortfolioRouteWithChildren
+  '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/portfolio/$id': typeof AuthenticatedAdminPortfolioIdRoute
 }
 export interface FileRoutesByTo {
@@ -100,6 +108,7 @@ export interface FileRoutesByTo {
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
   '/admin/portfolio': typeof AuthenticatedAdminPortfolioRouteWithChildren
+  '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/portfolio/$id': typeof AuthenticatedAdminPortfolioIdRoute
 }
 export interface FileRoutesById {
@@ -114,6 +123,7 @@ export interface FileRoutesById {
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
   '/_authenticated/admin/portfolio': typeof AuthenticatedAdminPortfolioRouteWithChildren
+  '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/admin/portfolio/$id': typeof AuthenticatedAdminPortfolioIdRoute
 }
 export interface FileRouteTypes {
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/login/membro'
     | '/portfolio/$slug'
     | '/admin/portfolio'
+    | '/admin/usuarios'
     | '/admin/portfolio/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/login/membro'
     | '/portfolio/$slug'
     | '/admin/portfolio'
+    | '/admin/usuarios'
     | '/admin/portfolio/$id'
   id:
     | '__root__'
@@ -153,6 +165,7 @@ export interface FileRouteTypes {
     | '/login/membro'
     | '/portfolio/$slug'
     | '/_authenticated/admin/portfolio'
+    | '/_authenticated/admin/usuarios'
     | '/_authenticated/admin/portfolio/$id'
   fileRoutesById: FileRoutesById
 }
@@ -229,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/usuarios': {
+      id: '/_authenticated/admin/usuarios'
+      path: '/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/portfolio': {
       id: '/_authenticated/admin/portfolio'
       path: '/portfolio'
@@ -262,11 +282,13 @@ const AuthenticatedAdminPortfolioRouteWithChildren =
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminPortfolioRoute: typeof AuthenticatedAdminPortfolioRouteWithChildren
+  AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminPortfolioRoute:
     AuthenticatedAdminPortfolioRouteWithChildren,
+  AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
@@ -318,3 +340,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
