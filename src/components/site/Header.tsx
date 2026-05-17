@@ -1,20 +1,23 @@
 import { useEffect, useState } from "react";
 import { Menu, LogIn } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import logoHorizontal from "@/assets/logo-horizontal.png";
 import logoHorizontalInvertido from "@/assets/logo-horizontal-invertido.png";
 
 const links = [
-  { href: "#sobre", label: "Sobre Nós" },
-  { href: "#servicos", label: "Serviços" },
-  { href: "#depoimentos", label: "Depoimentos" },
+  { hash: "sobre", label: "Sobre Nós" },
+  { hash: "servicos", label: "Serviços" },
+  { hash: "depoimentos", label: "Depoimentos" },
 ];
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  const isHome = pathname === "/";
+  const solid = scrolled || !isHome;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -26,38 +29,39 @@ export function Header() {
   return (
     <header
       className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-        scrolled
+        solid
           ? "bg-background/85 backdrop-blur-md border-b border-border shadow-card"
-          : "bg-transparent"
+          : "bg-deep"
       }`}
     >
       <div className="container mx-auto flex h-20 items-center justify-between px-4 md:px-8">
-        <a href="#top" className="flex items-center" aria-label="Dimensão Coberturas — Início">
+        <Link to="/" className="flex items-center" aria-label="Dimensão Coberturas — Início">
           <img
-            src={scrolled ? logoHorizontal : logoHorizontalInvertido}
+            src={solid ? logoHorizontal : logoHorizontalInvertido}
             alt="Dimensão Coberturas"
             className="h-10 md:h-12 w-auto"
             width={240}
             height={64}
           />
-        </a>
+        </Link>
 
         <nav className="hidden md:flex items-center gap-8" aria-label="Navegação principal">
           {links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
+            <Link
+              key={l.hash}
+              to="/"
+              hash={l.hash}
               className={`font-display font-semibold text-sm uppercase tracking-wider transition-colors relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:bg-accent after:transition-all hover:after:w-full hover:text-accent ${
-                scrolled ? "text-foreground/80" : "text-white/90"
+                solid ? "text-foreground/80" : "text-white/90"
               }`}
             >
               {l.label}
-            </a>
+            </Link>
           ))}
           <Link
             to="/portfolio"
             className={`font-display font-semibold text-sm uppercase tracking-wider transition-colors relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:bg-accent after:transition-all hover:after:w-full hover:text-accent ${
-              scrolled ? "text-foreground/80" : "text-white/90"
+              solid ? "text-foreground/80" : "text-white/90"
             }`}
           >
             Portfólio
@@ -70,7 +74,7 @@ export function Header() {
             variant="ghost"
             size="sm"
             className={`font-display font-semibold uppercase tracking-wider text-xs hover:bg-transparent ${
-              scrolled ? "text-foreground/70 hover:text-primary" : "text-white/80 hover:text-accent"
+              solid ? "text-foreground/70 hover:text-primary" : "text-white/80 hover:text-accent"
             }`}
           >
             <Link to="/login">
@@ -90,14 +94,15 @@ export function Header() {
             <SheetTitle className="sr-only">Menu</SheetTitle>
             <div className="flex flex-col gap-6 pt-8">
               {links.map((l) => (
-                <a
-                  key={l.href}
-                  href={l.href}
+                <Link
+                  key={l.hash}
+                  to="/"
+                  hash={l.hash}
                   onClick={() => setOpen(false)}
                   className="font-display font-semibold text-lg uppercase tracking-wider hover:text-accent transition-colors"
                 >
                   {l.label}
-                </a>
+                </Link>
               ))}
               <Link
                 to="/portfolio"
