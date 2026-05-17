@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated.
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated.admin.index'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated.admin.usuarios'
 import { Route as AuthenticatedAdminPortfolioRouteImport } from './routes/_authenticated.admin.portfolio'
+import { Route as AuthenticatedAdminCrmRouteImport } from './routes/_authenticated.admin.crm'
 import { Route as AuthenticatedAdminCrmIndexRouteImport } from './routes/_authenticated.admin.crm.index'
 import { Route as AuthenticatedAdminPortfolioIdRouteImport } from './routes/_authenticated.admin.portfolio.$id'
 import { Route as AuthenticatedAdminCrmObrasObraIdRouteImport } from './routes/_authenticated.admin.crm.obras.$obraId'
@@ -86,11 +87,16 @@ const AuthenticatedAdminPortfolioRoute =
     path: '/portfolio',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminCrmRoute = AuthenticatedAdminCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedAdminCrmIndexRoute =
   AuthenticatedAdminCrmIndexRouteImport.update({
-    id: '/crm/',
-    path: '/crm/',
-    getParentRoute: () => AuthenticatedAdminRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminCrmRoute,
   } as any)
 const AuthenticatedAdminPortfolioIdRoute =
   AuthenticatedAdminPortfolioIdRouteImport.update({
@@ -100,9 +106,9 @@ const AuthenticatedAdminPortfolioIdRoute =
   } as any)
 const AuthenticatedAdminCrmObrasObraIdRoute =
   AuthenticatedAdminCrmObrasObraIdRouteImport.update({
-    id: '/crm/obras/$obraId',
-    path: '/crm/obras/$obraId',
-    getParentRoute: () => AuthenticatedAdminRoute,
+    id: '/obras/$obraId',
+    path: '/obras/$obraId',
+    getParentRoute: () => AuthenticatedAdminCrmRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
   '/login/': typeof LoginIndexRoute
+  '/admin/crm': typeof AuthenticatedAdminCrmRouteWithChildren
   '/admin/portfolio': typeof AuthenticatedAdminPortfolioRouteWithChildren
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -147,6 +154,7 @@ export interface FileRoutesById {
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
   '/login/': typeof LoginIndexRoute
+  '/_authenticated/admin/crm': typeof AuthenticatedAdminCrmRouteWithChildren
   '/_authenticated/admin/portfolio': typeof AuthenticatedAdminPortfolioRouteWithChildren
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -165,6 +173,7 @@ export interface FileRouteTypes {
     | '/login/membro'
     | '/portfolio/$slug'
     | '/login/'
+    | '/admin/crm'
     | '/admin/portfolio'
     | '/admin/usuarios'
     | '/admin/'
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/login/membro'
     | '/portfolio/$slug'
     | '/login/'
+    | '/_authenticated/admin/crm'
     | '/_authenticated/admin/portfolio'
     | '/_authenticated/admin/usuarios'
     | '/_authenticated/admin/'
@@ -301,12 +311,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminPortfolioRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/crm': {
+      id: '/_authenticated/admin/crm'
+      path: '/crm'
+      fullPath: '/admin/crm'
+      preLoaderRoute: typeof AuthenticatedAdminCrmRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/crm/': {
       id: '/_authenticated/admin/crm/'
-      path: '/crm'
+      path: '/'
       fullPath: '/admin/crm/'
       preLoaderRoute: typeof AuthenticatedAdminCrmIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
+      parentRoute: typeof AuthenticatedAdminCrmRoute
     }
     '/_authenticated/admin/portfolio/$id': {
       id: '/_authenticated/admin/portfolio/$id'
@@ -317,13 +334,28 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/admin/crm/obras/$obraId': {
       id: '/_authenticated/admin/crm/obras/$obraId'
-      path: '/crm/obras/$obraId'
+      path: '/obras/$obraId'
       fullPath: '/admin/crm/obras/$obraId'
       preLoaderRoute: typeof AuthenticatedAdminCrmObrasObraIdRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
+      parentRoute: typeof AuthenticatedAdminCrmRoute
     }
   }
 }
+
+interface AuthenticatedAdminCrmRouteChildren {
+  AuthenticatedAdminCrmIndexRoute: typeof AuthenticatedAdminCrmIndexRoute
+  AuthenticatedAdminCrmObrasObraIdRoute: typeof AuthenticatedAdminCrmObrasObraIdRoute
+}
+
+const AuthenticatedAdminCrmRouteChildren: AuthenticatedAdminCrmRouteChildren = {
+  AuthenticatedAdminCrmIndexRoute: AuthenticatedAdminCrmIndexRoute,
+  AuthenticatedAdminCrmObrasObraIdRoute: AuthenticatedAdminCrmObrasObraIdRoute,
+}
+
+const AuthenticatedAdminCrmRouteWithChildren =
+  AuthenticatedAdminCrmRoute._addFileChildren(
+    AuthenticatedAdminCrmRouteChildren,
+  )
 
 interface AuthenticatedAdminPortfolioRouteChildren {
   AuthenticatedAdminPortfolioIdRoute: typeof AuthenticatedAdminPortfolioIdRoute
@@ -340,20 +372,18 @@ const AuthenticatedAdminPortfolioRouteWithChildren =
   )
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminCrmRoute: typeof AuthenticatedAdminCrmRouteWithChildren
   AuthenticatedAdminPortfolioRoute: typeof AuthenticatedAdminPortfolioRouteWithChildren
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
-  AuthenticatedAdminCrmIndexRoute: typeof AuthenticatedAdminCrmIndexRoute
-  AuthenticatedAdminCrmObrasObraIdRoute: typeof AuthenticatedAdminCrmObrasObraIdRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminCrmRoute: AuthenticatedAdminCrmRouteWithChildren,
   AuthenticatedAdminPortfolioRoute:
     AuthenticatedAdminPortfolioRouteWithChildren,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
-  AuthenticatedAdminCrmIndexRoute: AuthenticatedAdminCrmIndexRoute,
-  AuthenticatedAdminCrmObrasObraIdRoute: AuthenticatedAdminCrmObrasObraIdRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
