@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, LogIn } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import logoHorizontal from "@/assets/logo-horizontal.png";
@@ -53,13 +54,24 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden md:flex items-center gap-3">
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="font-display font-bold uppercase tracking-wider border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all hover:-translate-y-0.5"
+          >
+            <a href="#contato">Solicite orçamento</a>
+          </Button>
           <Button
             asChild
             size="lg"
             className="font-display font-bold uppercase tracking-wider shadow-elevated hover:-translate-y-0.5 transition-transform"
           >
-            <a href="#contato">Solicite orçamento</a>
+            <Link to="/login">
+              <LogIn className="h-4 w-4 mr-2" />
+              Entrar
+            </Link>
           </Button>
         </div>
 
@@ -84,12 +96,23 @@ export function Header() {
               ))}
               <Button
                 asChild
+                variant="outline"
                 size="lg"
-                className="font-display font-bold uppercase tracking-wider mt-4"
+                className="font-display font-bold uppercase tracking-wider mt-4 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
               >
                 <a href="#contato" onClick={() => setOpen(false)}>
                   Solicite orçamento
                 </a>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                className="font-display font-bold uppercase tracking-wider"
+              >
+                <Link to="/login" onClick={() => setOpen(false)}>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Entrar
+                </Link>
               </Button>
             </div>
           </SheetContent>
