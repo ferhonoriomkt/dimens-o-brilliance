@@ -4,13 +4,14 @@ import { useRouter } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-type Role = "admin" | "client";
+export type Role = "admin" | "coordenador" | "colaborador" | "cliente";
 
 interface AuthState {
   session: Session | null;
   user: User | null;
   roles: Role[];
   loading: boolean;
+  rolesLoading: boolean;
   isAdmin: boolean;
   signOut: () => Promise<void>;
 }
@@ -21,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(false);
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -42,9 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session?.user) {
       setRoles([]);
+      setRolesLoading(false);
       return;
     }
     let cancelled = false;
+    setRolesLoading(true);
     (async () => {
       const { data } = await supabase
         .from("user_roles")
@@ -52,10 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("user_id", session.user.id);
       if (!cancelled) {
         setRoles((data ?? []).map((r) => r.role as Role));
+        setRolesLoading(false);
       }
     })();
     return () => {
       cancelled = true;
+      setRolesLoading(false);
     };
   }, [session?.user?.id]);
 
@@ -68,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: session?.user ?? null,
     roles,
     loading,
+    rolesLoading,
     isAdmin: roles.includes("admin"),
     signOut,
   };
