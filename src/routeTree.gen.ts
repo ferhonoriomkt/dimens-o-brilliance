@@ -22,6 +22,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated.admin.usuarios'
 import { Route as AuthenticatedAdminPortfolioRouteImport } from './routes/_authenticated.admin.portfolio'
 import { Route as AuthenticatedAdminCrmRouteImport } from './routes/_authenticated.admin.crm'
+import { Route as AuthenticatedAdminCrmIndexRouteImport } from './routes/_authenticated.admin.crm.index'
 import { Route as AuthenticatedAdminPortfolioIdRouteImport } from './routes/_authenticated.admin.portfolio.$id'
 import { Route as AuthenticatedAdminCrmObrasObraIdRouteImport } from './routes/_authenticated.admin.crm.obras.$obraId'
 
@@ -91,6 +92,12 @@ const AuthenticatedAdminCrmRoute = AuthenticatedAdminCrmRouteImport.update({
   path: '/crm',
   getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
+const AuthenticatedAdminCrmIndexRoute =
+  AuthenticatedAdminCrmIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedAdminCrmRoute,
+  } as any)
 const AuthenticatedAdminPortfolioIdRoute =
   AuthenticatedAdminPortfolioIdRouteImport.update({
     id: '/$id',
@@ -118,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/portfolio/$id': typeof AuthenticatedAdminPortfolioIdRoute
+  '/admin/crm/': typeof AuthenticatedAdminCrmIndexRoute
   '/admin/crm/obras/$obraId': typeof AuthenticatedAdminCrmObrasObraIdRoute
 }
 export interface FileRoutesByTo {
@@ -128,11 +136,11 @@ export interface FileRoutesByTo {
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
   '/login': typeof LoginIndexRoute
-  '/admin/crm': typeof AuthenticatedAdminCrmRouteWithChildren
   '/admin/portfolio': typeof AuthenticatedAdminPortfolioRouteWithChildren
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/portfolio/$id': typeof AuthenticatedAdminPortfolioIdRoute
+  '/admin/crm': typeof AuthenticatedAdminCrmIndexRoute
   '/admin/crm/obras/$obraId': typeof AuthenticatedAdminCrmObrasObraIdRoute
 }
 export interface FileRoutesById {
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/portfolio/$id': typeof AuthenticatedAdminPortfolioIdRoute
+  '/_authenticated/admin/crm/': typeof AuthenticatedAdminCrmIndexRoute
   '/_authenticated/admin/crm/obras/$obraId': typeof AuthenticatedAdminCrmObrasObraIdRoute
 }
 export interface FileRouteTypes {
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/admin/'
     | '/admin/portfolio/$id'
+    | '/admin/crm/'
     | '/admin/crm/obras/$obraId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -179,11 +189,11 @@ export interface FileRouteTypes {
     | '/login/membro'
     | '/portfolio/$slug'
     | '/login'
-    | '/admin/crm'
     | '/admin/portfolio'
     | '/admin/usuarios'
     | '/admin'
     | '/admin/portfolio/$id'
+    | '/admin/crm'
     | '/admin/crm/obras/$obraId'
   id:
     | '__root__'
@@ -201,6 +211,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/usuarios'
     | '/_authenticated/admin/'
     | '/_authenticated/admin/portfolio/$id'
+    | '/_authenticated/admin/crm/'
     | '/_authenticated/admin/crm/obras/$obraId'
   fileRoutesById: FileRoutesById
 }
@@ -307,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCrmRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/crm/': {
+      id: '/_authenticated/admin/crm/'
+      path: '/'
+      fullPath: '/admin/crm/'
+      preLoaderRoute: typeof AuthenticatedAdminCrmIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminCrmRoute
+    }
     '/_authenticated/admin/portfolio/$id': {
       id: '/_authenticated/admin/portfolio/$id'
       path: '/$id'
@@ -325,10 +343,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminCrmRouteChildren {
+  AuthenticatedAdminCrmIndexRoute: typeof AuthenticatedAdminCrmIndexRoute
   AuthenticatedAdminCrmObrasObraIdRoute: typeof AuthenticatedAdminCrmObrasObraIdRoute
 }
 
 const AuthenticatedAdminCrmRouteChildren: AuthenticatedAdminCrmRouteChildren = {
+  AuthenticatedAdminCrmIndexRoute: AuthenticatedAdminCrmIndexRoute,
   AuthenticatedAdminCrmObrasObraIdRoute: AuthenticatedAdminCrmObrasObraIdRoute,
 }
 
