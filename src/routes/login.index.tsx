@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Users, UserRound, ArrowLeft } from "lucide-react";
 import logoHorizontal from "@/assets/logo-horizontal.png";
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/login/")({
   head: () => ({ meta: [{ title: "Acessar — Dimensão Coberturas" }] }),
   component: LoginPage,
 });
