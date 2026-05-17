@@ -11,10 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PortfolioSlugRouteImport } from './routes/portfolio.$slug'
 import { Route as LoginMembroRouteImport } from './routes/login.membro'
 import { Route as LoginClienteRouteImport } from './routes/login.cliente'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated.admin'
 
 const PortfolioRoute = PortfolioRouteImport.update({
   id: '/portfolio',
@@ -24,6 +26,10 @@ const PortfolioRoute = PortfolioRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -46,11 +52,17 @@ const LoginClienteRoute = LoginClienteRouteImport.update({
   path: '/cliente',
   getParentRoute: () => LoginRoute,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRouteWithChildren
   '/portfolio': typeof PortfolioRouteWithChildren
+  '/admin': typeof AuthenticatedAdminRoute
   '/login/cliente': typeof LoginClienteRoute
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
@@ -59,6 +71,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRouteWithChildren
   '/portfolio': typeof PortfolioRouteWithChildren
+  '/admin': typeof AuthenticatedAdminRoute
   '/login/cliente': typeof LoginClienteRoute
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
@@ -66,8 +79,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRouteWithChildren
   '/portfolio': typeof PortfolioRouteWithChildren
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/login/cliente': typeof LoginClienteRoute
   '/login/membro': typeof LoginMembroRoute
   '/portfolio/$slug': typeof PortfolioSlugRoute
@@ -78,6 +93,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/portfolio'
+    | '/admin'
     | '/login/cliente'
     | '/login/membro'
     | '/portfolio/$slug'
@@ -86,14 +102,17 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/portfolio'
+    | '/admin'
     | '/login/cliente'
     | '/login/membro'
     | '/portfolio/$slug'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/login'
     | '/portfolio'
+    | '/_authenticated/admin'
     | '/login/cliente'
     | '/login/membro'
     | '/portfolio/$slug'
@@ -101,6 +120,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRouteWithChildren
   PortfolioRoute: typeof PortfolioRouteWithChildren
 }
@@ -119,6 +139,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -149,8 +176,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginClienteRouteImport
       parentRoute: typeof LoginRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
+
+interface AuthenticatedRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
 
 interface LoginRouteChildren {
   LoginClienteRoute: typeof LoginClienteRoute
@@ -178,9 +224,20 @@ const PortfolioRouteWithChildren = PortfolioRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRouteWithChildren,
   PortfolioRoute: PortfolioRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
