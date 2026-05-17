@@ -266,6 +266,7 @@ export type Database = {
         Row: {
           cliente_email: string | null
           cliente_nome: string | null
+          cover_image_url: string | null
           created_at: string
           created_by: string | null
           data_fim_prevista: string | null
@@ -280,6 +281,7 @@ export type Database = {
         Insert: {
           cliente_email?: string | null
           cliente_nome?: string | null
+          cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
           data_fim_prevista?: string | null
@@ -294,6 +296,7 @@ export type Database = {
         Update: {
           cliente_email?: string | null
           cliente_nome?: string | null
+          cover_image_url?: string | null
           created_at?: string
           created_by?: string | null
           data_fim_prevista?: string | null

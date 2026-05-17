@@ -17,7 +17,7 @@ function CRMHome() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_obras")
-        .select("id,nome,cliente_nome,status,data_inicio_prevista,data_fim_prevista")
+          .select("id,nome,cliente_nome,status,data_inicio_prevista,data_fim_prevista,cover_image_url")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -73,8 +73,18 @@ function CRMHome() {
               key={o.id}
               to="/admin/crm/obras/$obraId"
               params={{ obraId: o.id }}
-              className="rounded-xl border border-border bg-card p-5 shadow-card hover:shadow-elevated hover:-translate-y-0.5 transition-all"
+              className="group rounded-xl border border-border bg-card shadow-card hover:shadow-elevated hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col"
             >
+              <div className="aspect-video w-full bg-muted overflow-hidden">
+                {o.cover_image_url ? (
+                  <img src={o.cover_image_url} alt={o.nome} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
+                    Sem imagem
+                  </div>
+                )}
+              </div>
+              <div className="p-5 flex-1 flex flex-col">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="font-display font-bold text-lg truncate">{o.nome}</h3>
@@ -84,6 +94,7 @@ function CRMHome() {
               </div>
               <div className="mt-4 text-xs text-muted-foreground">
                 {fmtDate(o.data_inicio_prevista)} → {fmtDate(o.data_fim_prevista)}
+              </div>
               </div>
             </Link>
           ))}
