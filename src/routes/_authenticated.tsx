@@ -9,10 +9,10 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
-  const { session, isAdmin, loading, signOut, user } = useAuth();
+  const { session, isAdmin, loading, rolesLoading, signOut, user } = useAuth();
   const navigate = useNavigate();
 
-  if (loading) {
+  if (loading || (session && rolesLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -49,6 +49,7 @@ function AuthenticatedLayout() {
           <nav className="flex items-center gap-6">
             <Link to="/admin" className="text-sm font-display font-semibold hover:text-accent transition-colors">Início</Link>
             <Link to="/admin/portfolio" className="text-sm font-display font-semibold hover:text-accent transition-colors">Portfólio</Link>
+            <Link to="/admin/usuarios" className="text-sm font-display font-semibold hover:text-accent transition-colors">Usuários</Link>
             <span className="text-xs text-white/60 hidden md:inline">{user?.email}</span>
             <Button size="sm" variant="ghost" className="text-white hover:bg-white/10" onClick={async () => { await signOut(); navigate({ to: "/" }); }}>
               <LogOut className="h-4 w-4" /> Sair
