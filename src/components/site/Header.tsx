@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, LogIn } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import logoHorizontal from "@/assets/logo-horizontal.png";
