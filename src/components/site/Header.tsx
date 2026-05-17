@@ -9,7 +9,6 @@ import logoHorizontalInvertido from "@/assets/logo-horizontal-invertido.png";
 const links = [
   { href: "#sobre", label: "Sobre Nós" },
   { href: "#servicos", label: "Serviços" },
-  { href: "#portfolio", label: "Portfólio" },
   { href: "#depoimentos", label: "Depoimentos" },
 ];
 
@@ -55,6 +54,14 @@ export function Header() {
               {l.label}
             </a>
           ))}
+          <Link
+            to="/portfolio"
+            className={`font-display font-semibold text-sm uppercase tracking-wider transition-colors relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:bg-accent after:transition-all hover:after:w-full hover:text-accent ${
+              scrolled ? "text-foreground/80" : "text-white/90"
+            }`}
+          >
+            Portfólio
+          </Link>
         </nav>
 
         <div className="hidden md:flex items-center">
@@ -92,6 +99,13 @@ export function Header() {
                   {l.label}
                 </a>
               ))}
+              <Link
+                to="/portfolio"
+                onClick={() => setOpen(false)}
+                className="font-display font-semibold text-lg uppercase tracking-wider hover:text-accent transition-colors"
+              >
+                Portfólio
+              </Link>
               <Button
                 asChild
                 variant="ghost"
