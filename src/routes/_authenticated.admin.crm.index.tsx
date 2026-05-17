@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ObraForm } from "@/components/crm/ObraForm";
 import { fmtDate, statusObraBadge, statusObraLabel } from "@/components/crm/crm-utils";
 
-export const Route = createFileRoute("/_authenticated/admin/crm")({
+export const Route = createFileRoute("/_authenticated/admin/crm/")({
   component: CRMHome,
 });
 
