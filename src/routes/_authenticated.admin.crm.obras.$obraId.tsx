@@ -15,6 +15,7 @@ import { FaseForm } from "@/components/crm/FaseForm";
 import { PlanejamentoItemForm } from "@/components/crm/PlanejamentoItemForm";
 import { ObraDashboard } from "@/components/crm/ObraDashboard";
 import { useObraPermissions } from "@/components/crm/use-obra-permissions";
+import { GanttView } from "@/components/crm/GanttView";
 import {
   fmtBRL, fmtDate, statusItemBadge, statusItemLabel, statusObraBadge, statusObraLabel, tipoItemLabel,
 } from "@/components/crm/crm-utils";
@@ -81,6 +82,34 @@ function ObraDetail() {
     },
     onSuccess: () => {
       toast.success("Item excluído");
+      qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteFase = useMutation({
+    mutationFn: async (id: string) => {
+      // null out fase on items first, then delete fase
+      await supabase.from("crm_planejamento_itens").update({ fase_id: null }).eq("fase_id", id);
+      const { error } = await supabase.from("crm_fases").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Fase excluída");
+      qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteProjeto = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("crm_planejamento_itens").delete().eq("projeto_id", id);
+      await supabase.from("crm_fases").delete().eq("projeto_id", id);
+      const { error } = await supabase.from("crm_projetos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Projeto excluído");
       qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -189,6 +218,7 @@ function ObraDetail() {
         <TabsList className="flex-wrap">
           <TabsTrigger value="visao">Visão geral</TabsTrigger>
           <TabsTrigger value="projetos">Projetos e cronograma</TabsTrigger>
+          <TabsTrigger value="gantt">Gantt</TabsTrigger>
           <TabsTrigger value="kanban">Kanban</TabsTrigger>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="export">Exportar</TabsTrigger>
@@ -222,6 +252,20 @@ function ObraDetail() {
                   </div>
                   {perms.canEdit && (
                     <div className="flex gap-2 flex-wrap">
+                      <ProjetoForm
+                        obraId={obraId}
+                        projeto={p}
+                        trigger={<Button size="sm" variant="ghost"><Pencil className="h-3.5 w-3.5" /></Button>}
+                      />
+                      {perms.isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => { if (confirm(`Excluir projeto "${p.nome}" e todas as suas fases/itens?`)) deleteProjeto.mutate(p.id); }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      )}
                       <FaseForm obraId={obraId} projetoId={p.id} trigger={<Button size="sm" variant="outline"><Plus className="h-3.5 w-3.5" /> Fase</Button>} />
                       <PlanejamentoItemForm
                         obraId={obraId}
@@ -243,12 +287,32 @@ function ObraDetail() {
                       const fItens = itens.filter((i) => i.fase_id === f.id);
                       return (
                         <div key={f.id} className="rounded-lg border border-border p-3">
-                          <div className="font-display font-semibold text-sm">{f.nome}</div>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="font-display font-semibold text-sm truncate">{f.nome}</div>
+                              {(f.data_inicio || f.data_fim) && (
+                                <div className="text-xs text-muted-foreground">{fmtDate(f.data_inicio)} → {fmtDate(f.data_fim)}</div>
+                              )}
+                            </div>
+                            {perms.canEdit && (
+                              <div className="flex items-center gap-1 shrink-0">
+                                <FaseForm obraId={obraId} projetoId={p.id} fase={f} trigger={<Button size="sm" variant="ghost" className="h-7"><Pencil className="h-3.5 w-3.5" /></Button>} />
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7"
+                                  onClick={() => { if (confirm(`Excluir fase "${f.nome}"? Os itens ficarão sem fase.`)) deleteFase.mutate(f.id); }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
                           {fItens.length === 0 ? (
                             <div className="text-xs text-muted-foreground mt-1">Sem itens nesta fase.</div>
                           ) : (
                             <ul className="mt-2 space-y-1.5">
-                              {fItens.map((i) => <ItemRow key={i.id} item={i} canEdit={perms.canEdit} onDone={() => markDone.mutate(i.id)} onReopen={() => reopenItem.mutate(i.id)} onDelete={() => deleteItem.mutate(i.id)} />)}
+                              {fItens.map((i) => <ItemRow key={i.id} item={i} projetoId={p.id} obraId={obraId} fases={fases} servicos={servicos} canEdit={perms.canEdit} canViewFinancial={perms.canViewFinancial} onDone={() => markDone.mutate(i.id)} onReopen={() => reopenItem.mutate(i.id)} onDelete={() => deleteItem.mutate(i.id)} />)}
                             </ul>
                           )}
                         </div>
@@ -258,7 +322,7 @@ function ObraDetail() {
                       <div className="rounded-lg border border-dashed border-border p-3">
                         <div className="font-display font-semibold text-sm text-muted-foreground">Sem fase</div>
                         <ul className="mt-2 space-y-1.5">
-                          {itens.filter((i) => !i.fase_id).map((i) => <ItemRow key={i.id} item={i} canEdit={perms.canEdit} onDone={() => markDone.mutate(i.id)} onReopen={() => reopenItem.mutate(i.id)} onDelete={() => deleteItem.mutate(i.id)} />)}
+                          {itens.filter((i) => !i.fase_id).map((i) => <ItemRow key={i.id} item={i} projetoId={p.id} obraId={obraId} fases={fases} servicos={servicos} canEdit={perms.canEdit} canViewFinancial={perms.canViewFinancial} onDone={() => markDone.mutate(i.id)} onReopen={() => reopenItem.mutate(i.id)} onDelete={() => deleteItem.mutate(i.id)} />)}
                         </ul>
                       </div>
                     )}
@@ -267,6 +331,16 @@ function ObraDetail() {
               </div>
             );
           })}
+        </TabsContent>
+
+        <TabsContent value="gantt" className="mt-6">
+          <GanttView
+            obraId={obraId}
+            projetos={data.projetos}
+            fases={data.fases}
+            itens={data.itens}
+            canEdit={perms.canEdit}
+          />
         </TabsContent>
 
         <TabsContent value="kanban" className="mt-6">
@@ -317,7 +391,7 @@ function ObraDetail() {
   );
 }
 
-function ItemRow({ item, canEdit, onDone, onReopen, onDelete }: any) {
+function ItemRow({ item, projetoId, obraId, fases, servicos, canEdit, canViewFinancial, onDone, onReopen, onDelete }: any) {
   return (
     <li className="flex items-center justify-between gap-2 text-sm">
       <div className="min-w-0 flex items-center gap-2">
@@ -330,6 +404,15 @@ function ItemRow({ item, canEdit, onDone, onReopen, onDelete }: any) {
       </div>
       {canEdit && (
         <div className="flex items-center gap-1">
+          <PlanejamentoItemForm
+            obraId={obraId}
+            projetoId={projetoId}
+            fases={fases}
+            servicos={servicos}
+            canViewFinancial={canViewFinancial}
+            item={item}
+            trigger={<Button size="sm" variant="ghost" className="h-7"><Pencil className="h-3.5 w-3.5" /></Button>}
+          />
           {item.status !== "concluido" ? (
             <Button size="sm" variant="ghost" className="h-7" onClick={onDone}><Check className="h-3.5 w-3.5" /></Button>
           ) : (

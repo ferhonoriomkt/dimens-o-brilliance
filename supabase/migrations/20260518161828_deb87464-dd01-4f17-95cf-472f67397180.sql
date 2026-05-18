@@ -1,0 +1,3 @@
+ALTER TABLE public.crm_fases
+  ADD COLUMN IF NOT EXISTS data_inicio date,
+  ADD COLUMN IF NOT EXISTS data_fim date;
