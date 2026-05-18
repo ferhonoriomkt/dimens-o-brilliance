@@ -94,10 +94,30 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
         .eq("id", args.id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onMutate: async (args) => {
+      const key = ["crm", "obra", obraId];
+      await qc.cancelQueries({ queryKey: key });
+      const prev = qc.getQueryData<any>(key);
+      if (prev) {
+        const field = args.kind === "fase" ? "fases" : "itens";
+        qc.setQueryData(key, {
+          ...prev,
+          [field]: (prev[field] ?? []).map((row: any) =>
+            row.id === args.id
+              ? { ...row, data_inicio: args.data_inicio, data_fim: args.data_fim }
+              : row,
+          ),
+        });
+      }
+      return { prev };
+    },
+    onError: (e: Error, _args, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["crm", "obra", obraId], ctx.prev);
+      toast.error(e.message);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] });
     },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const onBarPointerDown = useCallback((
