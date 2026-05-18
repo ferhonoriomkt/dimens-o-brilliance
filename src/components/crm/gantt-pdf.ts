@@ -54,17 +54,6 @@ function buildMarkdown(a: Args): string {
 }
 
 export async function exportGanttPDF(args: Args) {
-  // Capture the gantt element at full size
-  const canvas = await html2canvas(args.element, {
-    backgroundColor: "#ffffff",
-    scale: 2,
-    windowWidth: args.element.scrollWidth,
-    windowHeight: args.element.scrollHeight,
-    width: args.element.scrollWidth,
-    height: args.element.scrollHeight,
-  });
-  const imgData = canvas.toDataURL("image/png");
-
   const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
@@ -78,19 +67,53 @@ export async function exportGanttPDF(args: Args) {
   pdf.setFontSize(9);
   pdf.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, margin, margin + 20);
 
-  // Fit image into page width
-  const availW = pageW - margin * 2;
-  const ratio = canvas.height / canvas.width;
-  let imgW = availW;
-  let imgH = imgW * ratio;
-  const maxImgH = pageH - margin * 2 - 32;
-  if (imgH > maxImgH) {
-    imgH = maxImgH;
-    imgW = imgH / ratio;
+  // Try to capture the gantt as image. html2canvas fails on modern color
+  // functions (oklch) — wrap in try/catch and fall back to text-only PDF.
+  try {
+    const canvas = await html2canvas(args.element, {
+      backgroundColor: "#ffffff",
+      scale: 1.5,
+      windowWidth: args.element.scrollWidth,
+      windowHeight: args.element.scrollHeight,
+      width: args.element.scrollWidth,
+      height: args.element.scrollHeight,
+      onclone: (doc) => {
+        // Override oklch tokens with safe hex equivalents inside the clone
+        const style = doc.createElement("style");
+        style.textContent = `
+          * { color: #0f172a !important; }
+          .bg-card, [class*="bg-card"] { background: #ffffff !important; }
+          .bg-muted\\/40 { background: #f1f5f9 !important; }
+          .bg-primary, [class*="bg-primary"] { background: #2563eb !important; color: #ffffff !important; }
+          .bg-primary\\/40 { background: #93c5fd !important; }
+          .bg-emerald-500\\/80 { background: #10b981 !important; }
+          .border-border, [class*="border-border"] { border-color: #e2e8f0 !important; }
+          .text-muted-foreground { color: #64748b !important; }
+          .text-primary-foreground { color: #ffffff !important; }
+          .bg-destructive { background: #ef4444 !important; }
+        `;
+        doc.head.appendChild(style);
+      },
+    });
+    const imgData = canvas.toDataURL("image/png");
+    const availW = pageW - margin * 2;
+    const ratio = canvas.height / canvas.width;
+    let imgW = availW;
+    let imgH = imgW * ratio;
+    const maxImgH = pageH - margin * 2 - 32;
+    if (imgH > maxImgH) {
+      imgH = maxImgH;
+      imgW = imgH / ratio;
+    }
+    const imgX = margin + (availW - imgW) / 2;
+    const imgY = margin + 30;
+    pdf.addImage(imgData, "PNG", imgX, imgY, imgW, imgH);
+  } catch (err) {
+    console.error("html2canvas failed, exporting text-only PDF", err);
+    pdf.setFont("helvetica", "italic");
+    pdf.setFontSize(10);
+    pdf.text("(Imagem do Gantt indisponível — relatório textual a seguir)", margin, margin + 50);
   }
-  const imgX = margin + (availW - imgW) / 2;
-  const imgY = margin + 30;
-  pdf.addImage(imgData, "PNG", imgX, imgY, imgW, imgH);
 
   // Markdown report on subsequent pages
   const md = buildMarkdown(args);
