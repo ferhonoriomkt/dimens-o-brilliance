@@ -1,6 +1,3 @@
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
-
 interface Args {
   element: HTMLElement;
   title: string;
@@ -54,6 +51,10 @@ function buildMarkdown(a: Args): string {
 }
 
 export async function exportGanttPDF(args: Args) {
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    import("jspdf"),
+    import("html2canvas"),
+  ]);
   const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
@@ -77,7 +78,7 @@ export async function exportGanttPDF(args: Args) {
       windowHeight: args.element.scrollHeight,
       width: args.element.scrollWidth,
       height: args.element.scrollHeight,
-      onclone: (doc) => {
+      onclone: (doc: Document) => {
         // Override oklch tokens with safe hex equivalents inside the clone
         const style = doc.createElement("style");
         style.textContent = `
