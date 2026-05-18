@@ -1,13 +1,14 @@
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Scale, computeRange, generateColumns, dateToPx, parseDate, addDays,
-  snapPxToDate, toISODate, diffDays, PX_PER_UNIT,
+  snapPxToDate, toISODate, diffDays,
 } from "./gantt-utils";
+import { exportGanttPDF } from "./gantt-pdf";
 
 interface Props {
   obraId: string;
@@ -33,9 +34,12 @@ const LEFT_COL_W = 320;
 export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
   const qc = useQueryClient();
   const [scale, setScale] = useState<Scale>("week");
+  const [zoom, setZoom] = useState(1);
+  const [exporting, setExporting] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dragPreview, setDragPreview] = useState<Record<string, { left: number; width: number }>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const captureRef = useRef<HTMLDivElement>(null);
 
   const allDates = useMemo(() => {
     const arr: (string | null)[] = [];
@@ -44,8 +48,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
     return arr;
   }, [fases, itens]);
 
-  const range = useMemo(() => computeRange(allDates, scale), [allDates, scale]);
-  const columns = useMemo(() => generateColumns(range, scale), [range, scale]);
+  const range = useMemo(() => computeRange(allDates, scale, zoom), [allDates, scale, zoom]);
+  const columns = useMemo(() => generateColumns(range, scale, zoom), [range, scale, zoom]);
 
   const fasesByProjeto = useMemo(() => {
     const m = new Map<string, any[]>();
@@ -134,8 +138,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
     const startIni = parseDate(bar.data_inicio) ?? new Date();
     const startFim = parseDate(bar.data_fim) ?? addDays(startIni, 1);
     const startX = e.clientX;
-    const initialLeft = dateToPx(startIni, range.start, scale);
-    const initialRight = dateToPx(startFim, range.start, scale);
+    const initialLeft = dateToPx(startIni, range.start, scale, zoom);
+    const initialRight = dateToPx(startFim, range.start, scale, zoom);
     const initialWidth = Math.max(initialRight - initialLeft, 8);
 
     let finalIni = startIni;
@@ -155,8 +159,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
       }
       if (newWidthPx < 8) newWidthPx = 8;
 
-      const snappedIni = snapPxToDate(newLeftPx, range.start, scale);
-      const snappedFim = snapPxToDate(newLeftPx + newWidthPx, range.start, scale);
+      const snappedIni = snapPxToDate(newLeftPx, range.start, scale, zoom);
+      const snappedFim = snapPxToDate(newLeftPx + newWidthPx, range.start, scale, zoom);
       if (mode === "move") {
         const dur = diffDays(startIni, startFim);
         finalIni = snappedIni;
@@ -171,8 +175,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
         if (diffDays(finalIni, finalFim) < 1) finalFim = addDays(finalIni, 1);
       }
 
-      const previewLeft = dateToPx(finalIni, range.start, scale);
-      const previewWidth = Math.max(dateToPx(finalFim, range.start, scale) - previewLeft, 8);
+      const previewLeft = dateToPx(finalIni, range.start, scale, zoom);
+      const previewWidth = Math.max(dateToPx(finalFim, range.start, scale, zoom) - previewLeft, 8);
       setDragPreview((p) => ({ ...p, [bar.id]: { left: previewLeft, width: previewWidth } }));
     };
 
@@ -189,7 +193,7 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-  }, [canEdit, range, scale, updateDates]);
+  }, [canEdit, range, scale, zoom, updateDates]);
 
   const renderBar = (bar: BarData, rowTop: number) => {
     const preview = dragPreview[bar.id];
@@ -206,8 +210,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
         </div>
       );
     }
-    const left = preview?.left ?? dateToPx(ini, range.start, scale);
-    const width = preview?.width ?? Math.max(dateToPx(fim, range.start, scale) - left, 8);
+    const left = preview?.left ?? dateToPx(ini, range.start, scale, zoom);
+    const width = preview?.width ?? Math.max(dateToPx(fim, range.start, scale, zoom) - left, 8);
     const isFase = bar.kind === "fase";
     const baseColor = bar.completed
       ? "bg-emerald-500/80 border-emerald-600"
@@ -292,13 +296,65 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
   const HEADER_H = 56;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayPx = today >= range.start && today <= range.end ? dateToPx(today, range.start, scale) : null;
+  const todayPx = today >= range.start && today <= range.end ? dateToPx(today, range.start, scale, zoom) : null;
+
+  const fitZoom = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const avail = container.clientWidth - LEFT_COL_W - 24;
+    if (avail <= 0) return;
+    const natural = range.totalPx / zoom; // total width at zoom=1
+    const z = Math.max(0.15, Math.min(3, avail / natural));
+    setZoom(z);
+  }, [range.totalPx, zoom]);
+
+  // Auto-fit once on mount/data change so the user sees the full project
+  const didAutoFit = useRef(false);
+  useEffect(() => {
+    if (didAutoFit.current) return;
+    if (!fases.length && !itens.length) return;
+    didAutoFit.current = true;
+    requestAnimationFrame(() => fitZoom());
+  }, [fases.length, itens.length, fitZoom]);
+
+  const handleExportPDF = useCallback(async () => {
+    if (!captureRef.current) return;
+    setExporting(true);
+    try {
+      // Temporarily fit before capture so PDF gets full timeline
+      const obraNome = projetos[0]?.obra_nome ?? "Planejamento";
+      await exportGanttPDF({
+        element: captureRef.current,
+        title: "Planejamento da Obra",
+        projetos,
+        fases,
+        itens,
+        faseEffective,
+        fasesByProjeto,
+        itensByFase,
+      });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao exportar PDF");
+    } finally {
+      setExporting(false);
+    }
+  }, [projetos, fases, itens, faseEffective, fasesByProjeto, itensByFase]);
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b border-border">
         <h3 className="font-display font-bold">Gantt</h3>
-        <div className="flex gap-1">
+        <div className="flex gap-1 items-center flex-wrap">
+          <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.max(0.15, z * 0.8))} title="Diminuir zoom">
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="outline" onClick={fitZoom} title="Ajustar à tela">
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setZoom((z) => Math.min(3, z * 1.25))} title="Aumentar zoom">
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <div className="mx-2 h-5 w-px bg-border" />
           {(["day", "week", "month"] as Scale[]).map((s) => (
             <Button
               key={s}
@@ -309,11 +365,16 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
               {s === "day" ? "Dia" : s === "week" ? "Semana" : "Mês"}
             </Button>
           ))}
+          <div className="mx-2 h-5 w-px bg-border" />
+          <Button size="sm" variant="default" onClick={handleExportPDF} disabled={exporting}>
+            <FileDown className="h-4 w-4 mr-1" />
+            {exporting ? "Exportando..." : "PDF"}
+          </Button>
         </div>
       </div>
 
       <div ref={scrollRef} className="overflow-auto" style={{ maxHeight: "70vh" }}>
-        <div className="relative" style={{ width: LEFT_COL_W + range.totalPx + 24 }}>
+        <div ref={captureRef} className="relative bg-card" style={{ width: LEFT_COL_W + range.totalPx + 24 }}>
           {/* Header */}
           <div className="sticky top-0 z-20 bg-card border-b border-border" style={{ height: HEADER_H }}>
             <div className="flex">
