@@ -373,7 +373,7 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
         </div>
       </div>
 
-      <div ref={scrollRef} className="overflow-auto" style={{ maxHeight: "70vh" }}>
+      <div ref={scrollRef} className="overflow-y-auto overflow-x-hidden" style={{ maxHeight: "70vh" }}>
         <div ref={captureRef} className="relative bg-card" style={{ width: LEFT_COL_W + range.totalPx + 24 }}>
           {/* Header */}
           <div className="sticky top-0 z-20 bg-card border-b border-border" style={{ height: HEADER_H }}>
