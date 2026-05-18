@@ -115,6 +115,8 @@ export type Database = {
       crm_fases: {
         Row: {
           created_at: string
+          data_fim: string | null
+          data_inicio: string | null
           descricao: string | null
           id: string
           nome: string
@@ -125,6 +127,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
           descricao?: string | null
           id?: string
           nome: string
@@ -135,6 +139,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
           descricao?: string | null
           id?: string
           nome?: string
