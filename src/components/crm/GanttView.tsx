@@ -1,0 +1,381 @@
+import { useMemo, useRef, useState, useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Scale, computeRange, generateColumns, dateToPx, parseDate, addDays,
+  snapPxToDate, toISODate, diffDays, PX_PER_UNIT,
+} from "./gantt-utils";
+
+interface Props {
+  obraId: string;
+  projetos: any[];
+  fases: any[];
+  itens: any[];
+  canEdit: boolean;
+}
+
+type BarKind = "fase" | "item";
+
+interface BarData {
+  id: string;
+  kind: BarKind;
+  nome: string;
+  data_inicio: string | null;
+  data_fim: string | null;
+  completed?: boolean;
+}
+
+const LEFT_COL_W = 320;
+
+export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
+  const qc = useQueryClient();
+  const [scale, setScale] = useState<Scale>("week");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [dragPreview, setDragPreview] = useState<Record<string, { left: number; width: number }>>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const allDates = useMemo(() => {
+    const arr: (string | null)[] = [];
+    fases.forEach((f) => { arr.push(f.data_inicio); arr.push(f.data_fim); });
+    itens.forEach((i) => { arr.push(i.data_inicio); arr.push(i.data_fim); });
+    return arr;
+  }, [fases, itens]);
+
+  const range = useMemo(() => computeRange(allDates, scale), [allDates, scale]);
+  const columns = useMemo(() => generateColumns(range, scale), [range, scale]);
+
+  const fasesByProjeto = useMemo(() => {
+    const m = new Map<string, any[]>();
+    fases.forEach((f) => {
+      const arr = m.get(f.projeto_id) ?? [];
+      arr.push(f);
+      m.set(f.projeto_id, arr);
+    });
+    return m;
+  }, [fases]);
+
+  const itensByFase = useMemo(() => {
+    const m = new Map<string | null, any[]>();
+    itens.forEach((i) => {
+      const k = i.fase_id ?? null;
+      const arr = m.get(k) ?? [];
+      arr.push(i);
+      m.set(k, arr);
+    });
+    return m;
+  }, [itens]);
+
+  // Effective dates: if fase missing dates, compute from its itens
+  const faseEffective = useMemo(() => {
+    const m = new Map<string, { ini: string | null; fim: string | null }>();
+    fases.forEach((f) => {
+      let ini = f.data_inicio;
+      let fim = f.data_fim;
+      if (!ini || !fim) {
+        const fItens = itensByFase.get(f.id) ?? [];
+        const inis = fItens.map((i) => i.data_inicio).filter(Boolean) as string[];
+        const fims = fItens.map((i) => i.data_fim).filter(Boolean) as string[];
+        if (!ini && inis.length) ini = inis.sort()[0];
+        if (!fim && fims.length) fim = fims.sort()[fims.length - 1];
+      }
+      m.set(f.id, { ini, fim });
+    });
+    return m;
+  }, [fases, itensByFase]);
+
+  const updateDates = useMutation({
+    mutationFn: async (args: { kind: BarKind; id: string; data_inicio: string; data_fim: string }) => {
+      const table = args.kind === "fase" ? "crm_fases" : "crm_planejamento_itens";
+      const { error } = await supabase.from(table)
+        .update({ data_inicio: args.data_inicio, data_fim: args.data_fim })
+        .eq("id", args.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const onBarPointerDown = useCallback((
+    e: React.PointerEvent,
+    bar: BarData,
+    mode: "move" | "resize-l" | "resize-r",
+  ) => {
+    if (!canEdit) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    const startIni = parseDate(bar.data_inicio) ?? new Date();
+    const startFim = parseDate(bar.data_fim) ?? addDays(startIni, 1);
+    const startX = e.clientX;
+    const initialLeft = dateToPx(startIni, range.start, scale);
+    const initialRight = dateToPx(startFim, range.start, scale);
+    const initialWidth = Math.max(initialRight - initialLeft, 8);
+
+    let finalIni = startIni;
+    let finalFim = startFim;
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      let newLeftPx = initialLeft;
+      let newWidthPx = initialWidth;
+      if (mode === "move") {
+        newLeftPx = initialLeft + dx;
+      } else if (mode === "resize-l") {
+        newLeftPx = initialLeft + dx;
+        newWidthPx = initialWidth - dx;
+      } else {
+        newWidthPx = initialWidth + dx;
+      }
+      if (newWidthPx < 8) newWidthPx = 8;
+
+      const snappedIni = snapPxToDate(newLeftPx, range.start, scale);
+      const snappedFim = snapPxToDate(newLeftPx + newWidthPx, range.start, scale);
+      if (mode === "move") {
+        const dur = diffDays(startIni, startFim);
+        finalIni = snappedIni;
+        finalFim = addDays(snappedIni, dur);
+      } else if (mode === "resize-l") {
+        finalIni = snappedIni;
+        if (diffDays(finalIni, startFim) < 1) finalIni = addDays(startFim, -1);
+        finalFim = startFim;
+      } else {
+        finalIni = startIni;
+        finalFim = snappedFim;
+        if (diffDays(finalIni, finalFim) < 1) finalFim = addDays(finalIni, 1);
+      }
+
+      const previewLeft = dateToPx(finalIni, range.start, scale);
+      const previewWidth = Math.max(dateToPx(finalFim, range.start, scale) - previewLeft, 8);
+      setDragPreview((p) => ({ ...p, [bar.id]: { left: previewLeft, width: previewWidth } }));
+    };
+
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      setDragPreview((p) => { const c = { ...p }; delete c[bar.id]; return c; });
+      const newIni = toISODate(finalIni);
+      const newFim = toISODate(finalFim);
+      if (newIni !== bar.data_inicio || newFim !== bar.data_fim) {
+        updateDates.mutate({ kind: bar.kind, id: bar.id, data_inicio: newIni, data_fim: newFim });
+      }
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [canEdit, range, scale, updateDates]);
+
+  const renderBar = (bar: BarData, rowTop: number) => {
+    const preview = dragPreview[bar.id];
+    const ini = parseDate(bar.data_inicio);
+    const fim = parseDate(bar.data_fim);
+    if (!ini || !fim) {
+      return (
+        <div
+          key={bar.id}
+          className="absolute text-[10px] text-muted-foreground italic px-2"
+          style={{ top: rowTop + 8, left: 8 }}
+        >
+          Sem datas
+        </div>
+      );
+    }
+    const left = preview?.left ?? dateToPx(ini, range.start, scale);
+    const width = preview?.width ?? Math.max(dateToPx(fim, range.start, scale) - left, 8);
+    const isFase = bar.kind === "fase";
+    const baseColor = bar.completed
+      ? "bg-emerald-500/80 border-emerald-600"
+      : isFase
+        ? "bg-primary border-primary/60"
+        : "bg-primary/40 border-primary/50";
+    return (
+      <div
+        key={bar.id}
+        className={`absolute rounded-md border ${baseColor} flex items-center text-xs text-primary-foreground font-medium select-none ${canEdit ? "cursor-grab active:cursor-grabbing" : ""}`}
+        style={{
+          top: rowTop + 6,
+          left,
+          width,
+          height: isFase ? 22 : 18,
+        }}
+        onPointerDown={(e) => onBarPointerDown(e, bar, "move")}
+      >
+        {canEdit && (
+          <div
+            className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize bg-black/20 rounded-l-md"
+            onPointerDown={(e) => onBarPointerDown(e, bar, "resize-l")}
+          />
+        )}
+        <span className="truncate px-2">{bar.nome}</span>
+        {canEdit && (
+          <div
+            className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize bg-black/20 rounded-r-md"
+            onPointerDown={(e) => onBarPointerDown(e, bar, "resize-r")}
+          />
+        )}
+      </div>
+    );
+  };
+
+  // Build rows
+  type Row = { key: string; kind: "projeto" | "fase" | "item"; label: string; idx?: number; bar?: BarData; indent: number };
+  const rows: Row[] = [];
+  projetos.forEach((p, pIdx) => {
+    rows.push({ key: `p-${p.id}`, kind: "projeto", label: p.nome, idx: pIdx + 1, indent: 0 });
+    const pFases = fasesByProjeto.get(p.id) ?? [];
+    pFases.forEach((f, fIdx) => {
+      const eff = faseEffective.get(f.id) ?? { ini: null, fim: null };
+      const isExpanded = expanded[f.id] ?? true;
+      rows.push({
+        key: `f-${f.id}`,
+        kind: "fase",
+        label: f.nome,
+        idx: fIdx + 1,
+        indent: 1,
+        bar: { id: f.id, kind: "fase", nome: f.nome, data_inicio: eff.ini, data_fim: eff.fim },
+      });
+      if (isExpanded) {
+        const fItens = itensByFase.get(f.id) ?? [];
+        fItens.forEach((i) => {
+          rows.push({
+            key: `i-${i.id}`,
+            kind: "item",
+            label: i.nome,
+            indent: 2,
+            bar: { id: i.id, kind: "item", nome: i.nome, data_inicio: i.data_inicio, data_fim: i.data_fim, completed: i.status === "concluido" },
+          });
+        });
+      }
+    });
+    const orphans = (itensByFase.get(null) ?? []).filter((i) => i.projeto_id === p.id);
+    if (orphans.length) {
+      rows.push({ key: `o-${p.id}`, kind: "fase", label: "Sem fase", indent: 1 });
+      orphans.forEach((i) => {
+        rows.push({
+          key: `i-${i.id}`,
+          kind: "item",
+          label: i.nome,
+          indent: 2,
+          bar: { id: i.id, kind: "item", nome: i.nome, data_inicio: i.data_inicio, data_fim: i.data_fim, completed: i.status === "concluido" },
+        });
+      });
+    }
+  });
+
+  const ROW_H = 34;
+  const HEADER_H = 56;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayPx = today >= range.start && today <= range.end ? dateToPx(today, range.start, scale) : null;
+
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+      <div className="flex items-center justify-between p-3 border-b border-border">
+        <h3 className="font-display font-bold">Gantt</h3>
+        <div className="flex gap-1">
+          {(["day", "week", "month"] as Scale[]).map((s) => (
+            <Button
+              key={s}
+              size="sm"
+              variant={scale === s ? "default" : "outline"}
+              onClick={() => setScale(s)}
+            >
+              {s === "day" ? "Dia" : s === "week" ? "Semana" : "Mês"}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div ref={scrollRef} className="overflow-auto" style={{ maxHeight: "70vh" }}>
+        <div className="relative" style={{ width: LEFT_COL_W + range.totalPx + 24 }}>
+          {/* Header */}
+          <div className="sticky top-0 z-20 bg-card border-b border-border" style={{ height: HEADER_H }}>
+            <div className="flex">
+              <div
+                className="sticky left-0 z-30 bg-card border-r border-border flex items-end px-3 pb-2 font-semibold text-xs uppercase text-muted-foreground"
+                style={{ width: LEFT_COL_W, height: HEADER_H }}
+              >
+                Etapa / Descrição
+              </div>
+              <div className="relative" style={{ width: range.totalPx, height: HEADER_H }}>
+                {columns.groups.map((g, i) => (
+                  <div
+                    key={`g-${i}`}
+                    className="absolute top-0 h-7 border-r border-border bg-muted/40 flex items-center justify-center text-xs font-medium"
+                    style={{ left: g.left, width: g.width }}
+                  >
+                    {g.label}
+                  </div>
+                ))}
+                {columns.cells.map((c, i) => (
+                  <div
+                    key={`c-${i}`}
+                    className="absolute top-7 h-7 border-r border-border flex items-center justify-center text-[11px] text-muted-foreground"
+                    style={{ left: c.left, width: c.width }}
+                  >
+                    {c.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Rows */}
+          <div className="relative" style={{ height: rows.length * ROW_H }}>
+            {/* Vertical column grid */}
+            <div className="absolute inset-y-0" style={{ left: LEFT_COL_W, width: range.totalPx }}>
+              {columns.cells.map((c, i) => (
+                <div key={i} className="absolute top-0 bottom-0 border-r border-border/40" style={{ left: c.left, width: c.width }} />
+              ))}
+              {todayPx !== null && (
+                <div className="absolute top-0 bottom-0 w-px bg-destructive z-10" style={{ left: todayPx }} />
+              )}
+            </div>
+
+            {rows.map((row, rIdx) => {
+              const top = rIdx * ROW_H;
+              return (
+                <div key={row.key} className="absolute inset-x-0 border-b border-border/50" style={{ top, height: ROW_H }}>
+                  {/* left col */}
+                  <div
+                    className={`sticky left-0 z-10 h-full bg-card border-r border-border flex items-center gap-2 pr-2 text-sm ${row.kind === "projeto" ? "font-bold" : ""}`}
+                    style={{ width: LEFT_COL_W, paddingLeft: 12 + row.indent * 16 }}
+                  >
+                    {row.kind === "fase" && row.bar && (
+                      <button
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => setExpanded((p) => ({ ...p, [row.bar!.id]: !(p[row.bar!.id] ?? true) }))}
+                      >
+                        {(expanded[row.bar.id] ?? true) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
+                    {row.idx !== undefined && (
+                      <span className="text-xs text-muted-foreground w-5 shrink-0">{row.idx}</span>
+                    )}
+                    <span className="truncate">{row.label}</span>
+                  </div>
+                  {/* bar area */}
+                  <div className="absolute top-0 h-full" style={{ left: LEFT_COL_W, width: range.totalPx }}>
+                    {row.bar && renderBar(row.bar, 0)}
+                  </div>
+                </div>
+              );
+            })}
+
+            {rows.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                Nenhum projeto, fase ou item para exibir.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
