@@ -1,13 +1,14 @@
-import { useMemo, useRef, useState, useCallback } from "react";
+import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Scale, computeRange, generateColumns, dateToPx, parseDate, addDays,
-  snapPxToDate, toISODate, diffDays, PX_PER_UNIT,
+  snapPxToDate, toISODate, diffDays,
 } from "./gantt-utils";
+import { exportGanttPDF } from "./gantt-pdf";
 
 interface Props {
   obraId: string;
@@ -33,9 +34,12 @@ const LEFT_COL_W = 320;
 export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
   const qc = useQueryClient();
   const [scale, setScale] = useState<Scale>("week");
+  const [zoom, setZoom] = useState(1);
+  const [exporting, setExporting] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dragPreview, setDragPreview] = useState<Record<string, { left: number; width: number }>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const captureRef = useRef<HTMLDivElement>(null);
 
   const allDates = useMemo(() => {
     const arr: (string | null)[] = [];
@@ -44,8 +48,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
     return arr;
   }, [fases, itens]);
 
-  const range = useMemo(() => computeRange(allDates, scale), [allDates, scale]);
-  const columns = useMemo(() => generateColumns(range, scale), [range, scale]);
+  const range = useMemo(() => computeRange(allDates, scale, zoom), [allDates, scale, zoom]);
+  const columns = useMemo(() => generateColumns(range, scale, zoom), [range, scale, zoom]);
 
   const fasesByProjeto = useMemo(() => {
     const m = new Map<string, any[]>();
@@ -134,8 +138,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
     const startIni = parseDate(bar.data_inicio) ?? new Date();
     const startFim = parseDate(bar.data_fim) ?? addDays(startIni, 1);
     const startX = e.clientX;
-    const initialLeft = dateToPx(startIni, range.start, scale);
-    const initialRight = dateToPx(startFim, range.start, scale);
+    const initialLeft = dateToPx(startIni, range.start, scale, zoom);
+    const initialRight = dateToPx(startFim, range.start, scale, zoom);
     const initialWidth = Math.max(initialRight - initialLeft, 8);
 
     let finalIni = startIni;
@@ -155,8 +159,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
       }
       if (newWidthPx < 8) newWidthPx = 8;
 
-      const snappedIni = snapPxToDate(newLeftPx, range.start, scale);
-      const snappedFim = snapPxToDate(newLeftPx + newWidthPx, range.start, scale);
+      const snappedIni = snapPxToDate(newLeftPx, range.start, scale, zoom);
+      const snappedFim = snapPxToDate(newLeftPx + newWidthPx, range.start, scale, zoom);
       if (mode === "move") {
         const dur = diffDays(startIni, startFim);
         finalIni = snappedIni;
@@ -171,8 +175,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
         if (diffDays(finalIni, finalFim) < 1) finalFim = addDays(finalIni, 1);
       }
 
-      const previewLeft = dateToPx(finalIni, range.start, scale);
-      const previewWidth = Math.max(dateToPx(finalFim, range.start, scale) - previewLeft, 8);
+      const previewLeft = dateToPx(finalIni, range.start, scale, zoom);
+      const previewWidth = Math.max(dateToPx(finalFim, range.start, scale, zoom) - previewLeft, 8);
       setDragPreview((p) => ({ ...p, [bar.id]: { left: previewLeft, width: previewWidth } }));
     };
 
@@ -189,7 +193,7 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-  }, [canEdit, range, scale, updateDates]);
+  }, [canEdit, range, scale, zoom, updateDates]);
 
   const renderBar = (bar: BarData, rowTop: number) => {
     const preview = dragPreview[bar.id];
@@ -207,7 +211,7 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
       );
     }
     const left = preview?.left ?? dateToPx(ini, range.start, scale);
-    const width = preview?.width ?? Math.max(dateToPx(fim, range.start, scale) - left, 8);
+    const width = preview?.width ?? Math.max(dateToPx(fim, range.start, scale, zoom) - left, 8);
     const isFase = bar.kind === "fase";
     const baseColor = bar.completed
       ? "bg-emerald-500/80 border-emerald-600"
