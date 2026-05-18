@@ -49,27 +49,28 @@ export function snapDate(d: Date, scale: Scale): Date {
   return startOfMonth(d);
 }
 
-export function unitWidth(scale: Scale): number {
-  return PX_PER_UNIT[scale];
+export function unitWidth(scale: Scale, zoom = 1): number {
+  return PX_PER_UNIT[scale] * zoom;
 }
 
 // Pixel offset (from rangeStart) for a given date at given scale
-export function dateToPx(date: Date, rangeStart: Date, scale: Scale): number {
+export function dateToPx(date: Date, rangeStart: Date, scale: Scale, zoom = 1): number {
   const days = diffDays(rangeStart, date);
-  if (scale === "day") return days * PX_PER_UNIT.day;
-  if (scale === "week") return (days / 7) * PX_PER_UNIT.week;
-  // month: approximate via days/30.4375
-  return (days / 30.4375) * PX_PER_UNIT.month;
+  const unit = PX_PER_UNIT[scale] * zoom;
+  if (scale === "day") return days * unit;
+  if (scale === "week") return (days / 7) * unit;
+  return (days / 30.4375) * unit;
 }
 
-export function pxToDays(px: number, scale: Scale): number {
-  if (scale === "day") return px / PX_PER_UNIT.day;
-  if (scale === "week") return (px / PX_PER_UNIT.week) * 7;
-  return (px / PX_PER_UNIT.month) * 30.4375;
+export function pxToDays(px: number, scale: Scale, zoom = 1): number {
+  const unit = PX_PER_UNIT[scale] * zoom;
+  if (scale === "day") return px / unit;
+  if (scale === "week") return (px / unit) * 7;
+  return (px / unit) * 30.4375;
 }
 
-export function snapPxToDate(px: number, rangeStart: Date, scale: Scale): Date {
-  const days = pxToDays(px, scale);
+export function snapPxToDate(px: number, rangeStart: Date, scale: Scale, zoom = 1): Date {
+  const days = pxToDays(px, scale, zoom);
   const raw = addDays(rangeStart, Math.round(days));
   return snapDate(raw, scale);
 }
@@ -80,7 +81,7 @@ export interface TimelineRange {
   totalPx: number;
 }
 
-export function computeRange(dates: (string | null | undefined)[], scale: Scale): TimelineRange {
+export function computeRange(dates: (string | null | undefined)[], scale: Scale, zoom = 1): TimelineRange {
   const parsed = dates.map(parseDate).filter((d): d is Date => !!d);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -91,7 +92,7 @@ export function computeRange(dates: (string | null | undefined)[], scale: Scale)
   max = addDays(max, scale === "day" ? 7 : scale === "week" ? 14 : 30);
   const start = snapDate(min, scale);
   const end = snapDate(max, scale);
-  const totalPx = Math.max(dateToPx(end, start, scale), 600);
+  const totalPx = Math.max(dateToPx(end, start, scale, zoom), 600);
   return { start, end, totalPx };
 }
 
@@ -103,42 +104,43 @@ export interface ColumnHeader {
   width: number;
 }
 
-export function generateColumns(range: TimelineRange, scale: Scale): { groups: { label: string; left: number; width: number }[]; cells: ColumnHeader[] } {
+export function generateColumns(range: TimelineRange, scale: Scale, zoom = 1): { groups: { label: string; left: number; width: number }[]; cells: ColumnHeader[] } {
   const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   const cells: ColumnHeader[] = [];
+  const unit = (s: Scale) => PX_PER_UNIT[s] * zoom;
   if (scale === "day") {
     let d = new Date(range.start);
     while (d <= range.end) {
-      const left = dateToPx(d, range.start, scale);
+      const left = dateToPx(d, range.start, scale, zoom);
       cells.push({
         label: String(d.getDate()),
         groupLabel: `${months[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
         left,
-        width: PX_PER_UNIT.day,
+        width: unit("day"),
       });
       d = addDays(d, 1);
     }
   } else if (scale === "week") {
     let d = startOfWeek(range.start);
     while (d <= range.end) {
-      const left = dateToPx(d, range.start, scale);
+      const left = dateToPx(d, range.start, scale, zoom);
       cells.push({
         label: `${d.getDate()}/${d.getMonth() + 1}`,
         groupLabel: `${months[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`,
         left,
-        width: PX_PER_UNIT.week,
+        width: unit("week"),
       });
       d = addDays(d, 7);
     }
   } else {
     let d = startOfMonth(range.start);
     while (d <= range.end) {
-      const left = dateToPx(d, range.start, scale);
+      const left = dateToPx(d, range.start, scale, zoom);
       cells.push({
         label: months[d.getMonth()],
         groupLabel: String(d.getFullYear()),
         left,
-        width: PX_PER_UNIT.month,
+        width: unit("month"),
       });
       d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
     }
