@@ -1,6 +1,3 @@
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
-
 interface Args {
   element: HTMLElement;
   title: string;
