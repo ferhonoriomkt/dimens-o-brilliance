@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown, Plus, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown, Plus, ArrowUp, ArrowDown, GripVertical, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { FaseForm } from "@/components/crm/FaseForm";
@@ -21,6 +21,8 @@ interface Props {
   canEdit: boolean;
   canViewFinancial?: boolean;
   servicos?: { id: string; nome: string }[];
+  obraDataInicio?: string | null;
+  obraDataFim?: string | null;
 }
 
 type BarKind = "fase" | "item";
@@ -36,7 +38,7 @@ interface BarData {
 
 const LEFT_COL_W = 320;
 
-export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFinancial, servicos = [] }: Props) {
+export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFinancial, servicos = [], obraDataInicio, obraDataFim }: Props) {
   const qc = useQueryClient();
   const [scale, setScale] = useState<Scale>("week");
   const [zoom, setZoom] = useState(1);
@@ -48,6 +50,13 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
   const [reorderAnnounce, setReorderAnnounce] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
+
+  const toggleAll = useCallback((value: boolean) => {
+    const next: Record<string, boolean> = {};
+    fases.forEach((f) => { next[f.id] = value; });
+    setExpanded(next);
+  }, [fases]);
+  const allCollapsed = fases.length > 0 && fases.every((f) => expanded[f.id] === false);
 
   const allDates = useMemo(() => {
     const arr: (string | null)[] = [];
@@ -464,6 +473,16 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
             <ZoomIn className="h-4 w-4" />
           </Button>
           <div className="mx-2 h-5 w-px bg-border" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => toggleAll(allCollapsed ? true : false)}
+              title={allCollapsed ? "Expandir todas as fases" : "Retrair todas as fases"}
+              aria-label={allCollapsed ? "Expandir todas as fases" : "Retrair todas as fases"}
+            >
+              {allCollapsed ? <ChevronsUpDown className="h-4 w-4" /> : <ChevronsDownUp className="h-4 w-4" />}
+            </Button>
+            <div className="mx-2 h-5 w-px bg-border" />
           {(["day", "week", "month"] as Scale[]).map((s) => (
             <Button
               key={s}
