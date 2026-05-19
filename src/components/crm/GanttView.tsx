@@ -684,28 +684,29 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                           setDraggingFase({ id: row.fase.id, projetoId: row.fase.projeto_id });
                           e.dataTransfer.effectAllowed = "move";
                           try { e.dataTransfer.setData("text/plain", row.fase.id); } catch { /* noop */ }
-                          setReorderAnnounce(`Arrastando fase ${row.label}. Use as setas para cima e para baixo para reordenar, ou solte sobre outra fase.`);
+                          setReorderAnnounce(`Arrastando fase ${row.label}, posição ${row.idx} de ${(fasesByProjeto.get(row.fase.projeto_id) ?? []).length}. Solte sobre outra fase, ou use as setas para reordenar.`);
                         }}
                         onDragEnd={() => {
                           setDraggingFase(null);
                           setDragOverFase(null);
-                          setReorderAnnounce("Arraste cancelado.");
+                          setReorderAnnounce("");
                         }}
                         onKeyDown={(e) => {
                           if (swapOrdem.isPending) return;
                           if (e.key === "ArrowUp" && row.faseUp) {
                             e.preventDefault();
                             swapOrdem.mutate({ a: { id: row.fase.id, ordem: row.fase.ordem }, b: row.faseUp });
-                            setReorderAnnounce(`Fase ${row.label} movida para cima.`);
+                            setReorderAnnounce(`Fase ${row.label} movida para a posição ${(row.idx ?? 1) - 1}.`);
                           } else if (e.key === "ArrowDown" && row.faseDown) {
                             e.preventDefault();
                             swapOrdem.mutate({ a: { id: row.fase.id, ordem: row.fase.ordem }, b: row.faseDown });
-                            setReorderAnnounce(`Fase ${row.label} movida para baixo.`);
+                            setReorderAnnounce(`Fase ${row.label} movida para a posição ${(row.idx ?? 0) + 1}.`);
                           }
                         }}
                         aria-label={`Reordenar fase ${row.label}. Arraste para mover, ou use seta para cima e seta para baixo pelo teclado.`}
-                        aria-grabbed={draggingFase?.id === row.fase.id}
-                        className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        aria-keyshortcuts="ArrowUp ArrowDown"
+                        aria-pressed={draggingFase?.id === row.fase.id}
+                        className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded transition-transform duration-150 hover:scale-110"
                         title="Arraste ou use as setas para reordenar"
                       >
                         <GripVertical className="h-3.5 w-3.5" aria-hidden="true" />
