@@ -577,7 +577,7 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                     )}
                     <span className="truncate flex-1">{row.label}</span>
                     {canEdit && row.kind === "fase" && row.fase && (
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 [.group:hover_&]:opacity-100">
+                      <div className="flex items-center gap-0.5">
                         <button
                           className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
                           disabled={!row.faseUp || swapOrdem.isPending}
