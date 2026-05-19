@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown, Plus, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
+import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown, Plus, ArrowUp, ArrowDown, GripVertical, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { FaseForm } from "@/components/crm/FaseForm";
@@ -21,6 +21,8 @@ interface Props {
   canEdit: boolean;
   canViewFinancial?: boolean;
   servicos?: { id: string; nome: string }[];
+  obraDataInicio?: string | null;
+  obraDataFim?: string | null;
 }
 
 type BarKind = "fase" | "item";
@@ -36,7 +38,7 @@ interface BarData {
 
 const LEFT_COL_W = 320;
 
-export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFinancial, servicos = [] }: Props) {
+export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFinancial, servicos = [], obraDataInicio, obraDataFim }: Props) {
   const qc = useQueryClient();
   const [scale, setScale] = useState<Scale>("week");
   const [zoom, setZoom] = useState(1);
@@ -48,6 +50,13 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
   const [reorderAnnounce, setReorderAnnounce] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
+
+  const toggleAll = useCallback((value: boolean) => {
+    const next: Record<string, boolean> = {};
+    fases.forEach((f) => { next[f.id] = value; });
+    setExpanded(next);
+  }, [fases]);
+  const allCollapsed = fases.length > 0 && fases.every((f) => expanded[f.id] === false);
 
   const allDates = useMemo(() => {
     const arr: (string | null)[] = [];
@@ -464,6 +473,16 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
             <ZoomIn className="h-4 w-4" />
           </Button>
           <div className="mx-2 h-5 w-px bg-border" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => toggleAll(allCollapsed ? true : false)}
+              title={allCollapsed ? "Expandir todas as fases" : "Retrair todas as fases"}
+              aria-label={allCollapsed ? "Expandir todas as fases" : "Retrair todas as fases"}
+            >
+              {allCollapsed ? <ChevronsUpDown className="h-4 w-4" /> : <ChevronsDownUp className="h-4 w-4" />}
+            </Button>
+            <div className="mx-2 h-5 w-px bg-border" />
           {(["day", "week", "month"] as Scale[]).map((s) => (
             <Button
               key={s}
@@ -547,12 +566,19 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                 );
               }
               if (row.kind === "add-fase") {
+                const pFasesForRow = fasesByProjeto.get(row.projetoId!) ?? [];
+                const nextOrdem = pFasesForRow.length
+                  ? Math.max(...pFasesForRow.map((f) => Number(f.ordem) || 0)) + 1
+                  : 0;
                 return (
                   <div key={row.key} className="absolute inset-x-0 border-b border-border/50" style={{ top, height: ROW_H }}>
                     <div className="sticky left-0 z-10 h-full bg-card border-r border-border flex items-center" style={{ width: LEFT_COL_W, paddingLeft: 12 + row.indent * 16 }}>
                       <FaseForm
                         obraId={obraId}
                         projetoId={row.projetoId!}
+                        defaultOrdem={nextOrdem}
+                        defaultDataInicio={obraDataInicio ?? null}
+                        defaultDataFim={obraDataFim ?? null}
                         trigger={
                           <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:text-foreground">
                             <Plus className="h-3.5 w-3.5 mr-1" /> Nova fase
@@ -613,7 +639,7 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
               return (
                 <div
                   key={row.key}
-                  className={`absolute inset-x-0 border-b border-border/50 ${
+                  className={`absolute inset-x-0 border-b border-border/50 transition-[top,background-color,opacity] duration-200 ease-out ${
                     row.kind === "fase" && dragOverFase === row.faseId && draggingFase && draggingFase.id !== row.faseId
                       ? "bg-primary/5 outline outline-1 outline-primary/40"
                       : ""
@@ -622,8 +648,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                   {...(row.kind === "fase" && row.faseId
                     ? {
                         role: "listitem",
-                        "aria-label": `Fase ${row.idx ?? ""}: ${row.label}`,
-                        "aria-dropeffect": draggingFase && draggingFase.projetoId === row.fase?.projeto_id ? ("move" as const) : ("none" as const),
+                        "aria-roledescription": "Fase reordenável",
+                        "aria-label": `Fase ${row.idx ?? ""} de ${(fasesByProjeto.get(row.fase?.projeto_id) ?? []).length}: ${row.label}`,
                       }
                     : {})}
                   onDragOver={(e) => {
@@ -658,28 +684,29 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                           setDraggingFase({ id: row.fase.id, projetoId: row.fase.projeto_id });
                           e.dataTransfer.effectAllowed = "move";
                           try { e.dataTransfer.setData("text/plain", row.fase.id); } catch { /* noop */ }
-                          setReorderAnnounce(`Arrastando fase ${row.label}. Use as setas para cima e para baixo para reordenar, ou solte sobre outra fase.`);
+                          setReorderAnnounce(`Arrastando fase ${row.label}, posição ${row.idx} de ${(fasesByProjeto.get(row.fase.projeto_id) ?? []).length}. Solte sobre outra fase, ou use as setas para reordenar.`);
                         }}
                         onDragEnd={() => {
                           setDraggingFase(null);
                           setDragOverFase(null);
-                          setReorderAnnounce("Arraste cancelado.");
+                          setReorderAnnounce("");
                         }}
                         onKeyDown={(e) => {
                           if (swapOrdem.isPending) return;
                           if (e.key === "ArrowUp" && row.faseUp) {
                             e.preventDefault();
                             swapOrdem.mutate({ a: { id: row.fase.id, ordem: row.fase.ordem }, b: row.faseUp });
-                            setReorderAnnounce(`Fase ${row.label} movida para cima.`);
+                            setReorderAnnounce(`Fase ${row.label} movida para a posição ${(row.idx ?? 1) - 1}.`);
                           } else if (e.key === "ArrowDown" && row.faseDown) {
                             e.preventDefault();
                             swapOrdem.mutate({ a: { id: row.fase.id, ordem: row.fase.ordem }, b: row.faseDown });
-                            setReorderAnnounce(`Fase ${row.label} movida para baixo.`);
+                            setReorderAnnounce(`Fase ${row.label} movida para a posição ${(row.idx ?? 0) + 1}.`);
                           }
                         }}
                         aria-label={`Reordenar fase ${row.label}. Arraste para mover, ou use seta para cima e seta para baixo pelo teclado.`}
-                        aria-grabbed={draggingFase?.id === row.fase.id}
-                        className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        aria-keyshortcuts="ArrowUp ArrowDown"
+                        aria-pressed={draggingFase?.id === row.fase.id}
+                        className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded transition-transform duration-150 hover:scale-110"
                         title="Arraste ou use as setas para reordenar"
                       >
                         <GripVertical className="h-3.5 w-3.5" aria-hidden="true" />

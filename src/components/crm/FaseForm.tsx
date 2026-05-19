@@ -13,27 +13,35 @@ interface Props {
   projetoId: string;
   obraId: string;
   fase?: { id: string; nome: string; descricao: string | null; ordem: number; data_inicio?: string | null; data_fim?: string | null };
+  defaultOrdem?: number;
+  defaultDataInicio?: string | null;
+  defaultDataFim?: string | null;
 }
 
-export function FaseForm({ trigger, projetoId, obraId, fase }: Props) {
+export function FaseForm({ trigger, projetoId, obraId, fase, defaultOrdem, defaultDataInicio, defaultDataFim }: Props) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     nome: fase?.nome ?? "",
     descricao: fase?.descricao ?? "",
-    ordem: fase?.ordem ?? 0,
+    ordem: fase?.ordem ?? defaultOrdem ?? 0,
     data_inicio: fase?.data_inicio ?? "",
     data_fim: fase?.data_fim ?? "",
   });
 
   const save = useMutation({
     mutationFn: async () => {
+      // Rule: if user leaves dates empty when creating a new fase, fill with
+      // the full obra schedule so the bar covers the whole project; the user
+      // can then resize via the gantt.
+      const fallbackIni = !fase ? (defaultDataInicio ?? null) : null;
+      const fallbackFim = !fase ? (defaultDataFim ?? null) : null;
       const payload = {
         nome: form.nome.trim(),
         descricao: form.descricao || null,
         ordem: Number(form.ordem) || 0,
-        data_inicio: form.data_inicio || null,
-        data_fim: form.data_fim || null,
+        data_inicio: form.data_inicio || fallbackIni,
+        data_fim: form.data_fim || fallbackFim,
       };
       if (fase) {
         const { error } = await supabase.from("crm_fases").update(payload).eq("id", fase.id);
