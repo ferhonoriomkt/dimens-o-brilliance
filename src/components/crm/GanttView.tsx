@@ -45,6 +45,7 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
   const [dragPreview, setDragPreview] = useState<Record<string, { left: number; width: number }>>({});
   const [draggingFase, setDraggingFase] = useState<{ id: string; projetoId: string } | null>(null);
   const [dragOverFase, setDragOverFase] = useState<string | null>(null);
+  const [reorderAnnounce, setReorderAnnounce] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
 
@@ -447,6 +448,9 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {reorderAnnounce}
+      </div>
       <div className="flex items-center justify-between p-3 border-b border-border">
         <h3 className="font-display font-bold">Gantt</h3>
         <div className="flex gap-1 items-center flex-wrap">
@@ -615,6 +619,13 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                       : ""
                   } ${row.kind === "fase" && draggingFase?.id === row.faseId ? "opacity-50" : ""}`}
                   style={{ top, height: ROW_H }}
+                  {...(row.kind === "fase" && row.faseId
+                    ? {
+                        role: "listitem",
+                        "aria-label": `Fase ${row.idx ?? ""}: ${row.label}`,
+                        "aria-dropeffect": draggingFase && draggingFase.projetoId === row.fase?.projeto_id ? ("move" as const) : ("none" as const),
+                      }
+                    : {})}
                   onDragOver={(e) => {
                     if (row.kind === "fase" && row.fase && draggingFase && draggingFase.projetoId === row.fase.projeto_id) {
                       e.preventDefault();
@@ -640,19 +651,39 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                     style={{ width: LEFT_COL_W, paddingLeft: 12 + row.indent * 16 }}
                   >
                     {canEdit && row.kind === "fase" && row.fase && (
-                      <span
+                      <button
+                        type="button"
                         draggable
                         onDragStart={(e) => {
                           setDraggingFase({ id: row.fase.id, projetoId: row.fase.projeto_id });
                           e.dataTransfer.effectAllowed = "move";
                           try { e.dataTransfer.setData("text/plain", row.fase.id); } catch { /* noop */ }
+                          setReorderAnnounce(`Arrastando fase ${row.label}. Use as setas para cima e para baixo para reordenar, ou solte sobre outra fase.`);
                         }}
-                        onDragEnd={() => { setDraggingFase(null); setDragOverFase(null); }}
-                        className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
-                        title="Arraste para reordenar"
+                        onDragEnd={() => {
+                          setDraggingFase(null);
+                          setDragOverFase(null);
+                          setReorderAnnounce("Arraste cancelado.");
+                        }}
+                        onKeyDown={(e) => {
+                          if (swapOrdem.isPending) return;
+                          if (e.key === "ArrowUp" && row.faseUp) {
+                            e.preventDefault();
+                            swapOrdem.mutate({ a: { id: row.fase.id, ordem: row.fase.ordem }, b: row.faseUp });
+                            setReorderAnnounce(`Fase ${row.label} movida para cima.`);
+                          } else if (e.key === "ArrowDown" && row.faseDown) {
+                            e.preventDefault();
+                            swapOrdem.mutate({ a: { id: row.fase.id, ordem: row.fase.ordem }, b: row.faseDown });
+                            setReorderAnnounce(`Fase ${row.label} movida para baixo.`);
+                          }
+                        }}
+                        aria-label={`Reordenar fase ${row.label}. Arraste para mover, ou use seta para cima e seta para baixo pelo teclado.`}
+                        aria-grabbed={draggingFase?.id === row.fase.id}
+                        className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        title="Arraste ou use as setas para reordenar"
                       >
-                        <GripVertical className="h-3.5 w-3.5" />
-                      </span>
+                        <GripVertical className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
                     )}
                     {row.kind === "fase" && row.bar && (
                       <button
