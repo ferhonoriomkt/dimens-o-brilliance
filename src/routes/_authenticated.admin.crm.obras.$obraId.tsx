@@ -340,6 +340,8 @@ function ObraDetail() {
             fases={data.fases}
             itens={data.itens}
             canEdit={perms.canEdit}
+            canViewFinancial={perms.canViewFinancial}
+            servicos={data.itens.filter((i: any) => i.tipo === "servico").map((i: any) => ({ id: i.id, nome: i.nome }))}
           />
         </TabsContent>
 
