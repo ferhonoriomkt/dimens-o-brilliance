@@ -1,9 +1,12 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown } from "lucide-react";
+import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown, Plus, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { FaseForm } from "@/components/crm/FaseForm";
+import { PlanejamentoItemForm } from "@/components/crm/PlanejamentoItemForm";
+import { ProjetoForm } from "@/components/crm/ProjetoForm";
 import {
   Scale, computeRange, generateColumns, dateToPx, parseDate, addDays,
   snapPxToDate, toISODate, diffDays,
@@ -16,6 +19,8 @@ interface Props {
   fases: any[];
   itens: any[];
   canEdit: boolean;
+  canViewFinancial?: boolean;
+  servicos?: { id: string; nome: string }[];
 }
 
 type BarKind = "fase" | "item";
@@ -31,7 +36,7 @@ interface BarData {
 
 const LEFT_COL_W = 320;
 
-export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
+export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFinancial, servicos = [] }: Props) {
   const qc = useQueryClient();
   const [scale, setScale] = useState<Scale>("week");
   const [zoom, setZoom] = useState(1);
@@ -122,6 +127,21 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] });
     },
+  });
+
+  const swapOrdem = useMutation({
+    mutationFn: async (args: { a: { id: string; ordem: number }; b: { id: string; ordem: number } }) => {
+      // Use a temporary value to avoid unique-conflict if (projeto_id, ordem) is unique
+      const tmp = -Math.floor(Math.random() * 100000) - 1;
+      const u1 = await supabase.from("crm_fases").update({ ordem: tmp }).eq("id", args.a.id);
+      if (u1.error) throw u1.error;
+      const u2 = await supabase.from("crm_fases").update({ ordem: args.a.ordem }).eq("id", args.b.id);
+      if (u2.error) throw u2.error;
+      const u3 = await supabase.from("crm_fases").update({ ordem: args.b.ordem }).eq("id", args.a.id);
+      if (u3.error) throw u3.error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] }),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const onBarPointerDown = useCallback((
@@ -248,10 +268,23 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
   };
 
   // Build rows
-  type Row = { key: string; kind: "projeto" | "fase" | "item"; label: string; idx?: number; bar?: BarData; indent: number };
+  type Row = {
+    key: string;
+    kind: "projeto" | "fase" | "item" | "add-fase" | "add-item" | "add-projeto";
+    label: string;
+    idx?: number;
+    bar?: BarData;
+    indent: number;
+    projetoId?: string;
+    faseId?: string;
+    fase?: any;
+    faseUp?: { id: string; ordem: number };
+    faseDown?: { id: string; ordem: number };
+    faseDates?: { ini: string | null; fim: string | null };
+  };
   const rows: Row[] = [];
   projetos.forEach((p, pIdx) => {
-    rows.push({ key: `p-${p.id}`, kind: "projeto", label: p.nome, idx: pIdx + 1, indent: 0 });
+    rows.push({ key: `p-${p.id}`, kind: "projeto", label: p.nome, idx: pIdx + 1, indent: 0, projetoId: p.id });
     const pFases = fasesByProjeto.get(p.id) ?? [];
     pFases.forEach((f, fIdx) => {
       const eff = faseEffective.get(f.id) ?? { ini: null, fim: null };
@@ -263,6 +296,12 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
         idx: fIdx + 1,
         indent: 1,
         bar: { id: f.id, kind: "fase", nome: f.nome, data_inicio: eff.ini, data_fim: eff.fim },
+        projetoId: p.id,
+        faseId: f.id,
+        fase: f,
+        faseUp: fIdx > 0 ? { id: pFases[fIdx - 1].id, ordem: pFases[fIdx - 1].ordem } : undefined,
+        faseDown: fIdx < pFases.length - 1 ? { id: pFases[fIdx + 1].id, ordem: pFases[fIdx + 1].ordem } : undefined,
+        faseDates: eff,
       });
       if (isExpanded) {
         const fItens = itensByFase.get(f.id) ?? [];
@@ -275,6 +314,17 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
             bar: { id: i.id, kind: "item", nome: i.nome, data_inicio: i.data_inicio, data_fim: i.data_fim, completed: i.status === "concluido" },
           });
         });
+        if (canEdit) {
+          rows.push({
+            key: `add-i-${f.id}`,
+            kind: "add-item",
+            label: "Adicionar item",
+            indent: 2,
+            projetoId: p.id,
+            faseId: f.id,
+            faseDates: eff,
+          });
+        }
       }
     });
     const orphans = (itensByFase.get(null) ?? []).filter((i) => i.projeto_id === p.id);
@@ -290,7 +340,13 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
         });
       });
     }
+    if (canEdit) {
+      rows.push({ key: `add-f-${p.id}`, kind: "add-fase", label: "Adicionar fase", indent: 1, projetoId: p.id });
+    }
   });
+  if (canEdit) {
+    rows.push({ key: `add-p`, kind: "add-projeto", label: "Adicionar projeto", indent: 0 });
+  }
 
   const ROW_H = 34;
   const HEADER_H = 56;
@@ -421,6 +477,86 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
 
             {rows.map((row, rIdx) => {
               const top = rIdx * ROW_H;
+              if (row.kind === "add-projeto") {
+                return (
+                  <div key={row.key} className="absolute inset-x-0 border-b border-border/50" style={{ top, height: ROW_H }}>
+                    <div className="sticky left-0 z-10 h-full bg-card border-r border-border flex items-center" style={{ width: LEFT_COL_W, paddingLeft: 12 }}>
+                      <ProjetoForm
+                        obraId={obraId}
+                        trigger={
+                          <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:text-foreground">
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Novo projeto
+                          </Button>
+                        }
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              if (row.kind === "add-fase") {
+                return (
+                  <div key={row.key} className="absolute inset-x-0 border-b border-border/50" style={{ top, height: ROW_H }}>
+                    <div className="sticky left-0 z-10 h-full bg-card border-r border-border flex items-center" style={{ width: LEFT_COL_W, paddingLeft: 12 + row.indent * 16 }}>
+                      <FaseForm
+                        obraId={obraId}
+                        projetoId={row.projetoId!}
+                        trigger={
+                          <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:text-foreground">
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Nova fase
+                          </Button>
+                        }
+                      />
+                    </div>
+                  </div>
+                );
+              }
+              if (row.kind === "add-item") {
+                const faseList = fases.filter((f: any) => f.projeto_id === row.projetoId);
+                const ini = row.faseDates?.ini ? parseDate(row.faseDates.ini) : null;
+                const fim = row.faseDates?.fim ? parseDate(row.faseDates.fim) : null;
+                const left = ini ? dateToPx(ini, range.start, scale, zoom) : 0;
+                const width = ini && fim ? Math.max(dateToPx(fim, range.start, scale, zoom) - left, 24) : 0;
+                return (
+                  <div key={row.key} className="absolute inset-x-0 border-b border-border/50 group" style={{ top, height: ROW_H }}>
+                    <div className="sticky left-0 z-10 h-full bg-card border-r border-border flex items-center" style={{ width: LEFT_COL_W, paddingLeft: 12 + row.indent * 16 }}>
+                      <PlanejamentoItemForm
+                        obraId={obraId}
+                        projetoId={row.projetoId!}
+                        fases={faseList}
+                        servicos={servicos}
+                        canViewFinancial={canViewFinancial}
+                        defaultFaseId={row.faseId}
+                        trigger={
+                          <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:text-foreground">
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar item
+                          </Button>
+                        }
+                      />
+                    </div>
+                    {ini && fim && (
+                      <div className="absolute top-0 h-full" style={{ left: LEFT_COL_W, width: range.totalPx }}>
+                        <PlanejamentoItemForm
+                          obraId={obraId}
+                          projetoId={row.projetoId!}
+                          fases={faseList}
+                          servicos={servicos}
+                          canViewFinancial={canViewFinancial}
+                          defaultFaseId={row.faseId}
+                          trigger={
+                            <button
+                              className="absolute rounded-md border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/15 hover:border-primary text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[11px] font-medium"
+                              style={{ top: 6, left, width, height: 22 }}
+                              title="Adicionar item nesta fase"
+                            >
+                              <Plus className="h-3 w-3 mr-1" /> item
+                            </button>
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              }
               return (
                 <div key={row.key} className="absolute inset-x-0 border-b border-border/50" style={{ top, height: ROW_H }}>
                   {/* left col */}
@@ -439,7 +575,27 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit }: Props) {
                     {row.idx !== undefined && (
                       <span className="text-xs text-muted-foreground w-5 shrink-0">{row.idx}</span>
                     )}
-                    <span className="truncate">{row.label}</span>
+                    <span className="truncate flex-1">{row.label}</span>
+                    {canEdit && row.kind === "fase" && row.fase && (
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 [.group:hover_&]:opacity-100">
+                        <button
+                          className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                          disabled={!row.faseUp || swapOrdem.isPending}
+                          onClick={() => row.faseUp && swapOrdem.mutate({ a: { id: row.fase.id, ordem: row.fase.ordem }, b: row.faseUp })}
+                          title="Mover para cima"
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                          disabled={!row.faseDown || swapOrdem.isPending}
+                          onClick={() => row.faseDown && swapOrdem.mutate({ a: { id: row.fase.id, ordem: row.fase.ordem }, b: row.faseDown })}
+                          title="Mover para baixo"
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {/* bar area */}
                   <div className="absolute top-0 h-full" style={{ left: LEFT_COL_W, width: range.totalPx }}>
