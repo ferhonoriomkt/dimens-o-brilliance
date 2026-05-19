@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown, Plus, ArrowUp, ArrowDown } from "lucide-react";
+import { ChevronDown, ChevronRight, ZoomIn, ZoomOut, Maximize2, FileDown, Plus, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { FaseForm } from "@/components/crm/FaseForm";
@@ -43,6 +43,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
   const [exporting, setExporting] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [dragPreview, setDragPreview] = useState<Record<string, { left: number; width: number }>>({});
+  const [draggingFase, setDraggingFase] = useState<{ id: string; projetoId: string } | null>(null);
+  const [dragOverFase, setDragOverFase] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const captureRef = useRef<HTMLDivElement>(null);
 
@@ -143,6 +145,53 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
     onSuccess: () => qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] }),
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const reorderFases = useMutation({
+    mutationFn: async (args: { projetoId: string; orderedIds: string[] }) => {
+      // Two-pass to avoid unique conflicts on (projeto_id, ordem) if present
+      for (let i = 0; i < args.orderedIds.length; i++) {
+        const r = await supabase.from("crm_fases").update({ ordem: -(i + 1) - 100000 }).eq("id", args.orderedIds[i]);
+        if (r.error) throw r.error;
+      }
+      for (let i = 0; i < args.orderedIds.length; i++) {
+        const r = await supabase.from("crm_fases").update({ ordem: i }).eq("id", args.orderedIds[i]);
+        if (r.error) throw r.error;
+      }
+    },
+    onMutate: async (args) => {
+      const key = ["crm", "obra", obraId];
+      await qc.cancelQueries({ queryKey: key });
+      const prev = qc.getQueryData<any>(key);
+      if (prev) {
+        const indexMap = new Map(args.orderedIds.map((id, i) => [id, i]));
+        qc.setQueryData(key, {
+          ...prev,
+          fases: (prev.fases ?? []).map((f: any) =>
+            f.projeto_id === args.projetoId && indexMap.has(f.id)
+              ? { ...f, ordem: indexMap.get(f.id) }
+              : f,
+          ).sort((a: any, b: any) => (a.ordem ?? 0) - (b.ordem ?? 0)),
+        });
+      }
+      return { prev };
+    },
+    onError: (e: Error, _args, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["crm", "obra", obraId], ctx.prev);
+      toast.error(e.message);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["crm", "obra", obraId] }),
+  });
+
+  const handleFaseDrop = useCallback((targetFaseId: string) => {
+    if (!draggingFase || draggingFase.id === targetFaseId) return;
+    const pFases = (fasesByProjeto.get(draggingFase.projetoId) ?? []).slice();
+    const fromIdx = pFases.findIndex((f) => f.id === draggingFase.id);
+    const toIdx = pFases.findIndex((f) => f.id === targetFaseId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const [moved] = pFases.splice(fromIdx, 1);
+    pFases.splice(toIdx, 0, moved);
+    reorderFases.mutate({ projetoId: draggingFase.projetoId, orderedIds: pFases.map((f) => f.id) });
+  }, [draggingFase, fasesByProjeto, reorderFases]);
 
   const onBarPointerDown = useCallback((
     e: React.PointerEvent,
@@ -558,12 +607,53 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                 );
               }
               return (
-                <div key={row.key} className="absolute inset-x-0 border-b border-border/50" style={{ top, height: ROW_H }}>
+                <div
+                  key={row.key}
+                  className={`absolute inset-x-0 border-b border-border/50 ${
+                    row.kind === "fase" && dragOverFase === row.faseId && draggingFase && draggingFase.id !== row.faseId
+                      ? "bg-primary/5 outline outline-1 outline-primary/40"
+                      : ""
+                  } ${row.kind === "fase" && draggingFase?.id === row.faseId ? "opacity-50" : ""}`}
+                  style={{ top, height: ROW_H }}
+                  onDragOver={(e) => {
+                    if (row.kind === "fase" && row.fase && draggingFase && draggingFase.projetoId === row.fase.projeto_id) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (dragOverFase !== row.faseId) setDragOverFase(row.faseId!);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (row.kind === "fase" && dragOverFase === row.faseId) setDragOverFase(null);
+                  }}
+                  onDrop={(e) => {
+                    if (row.kind === "fase" && row.faseId && draggingFase && draggingFase.projetoId === row.fase?.projeto_id) {
+                      e.preventDefault();
+                      handleFaseDrop(row.faseId);
+                      setDragOverFase(null);
+                      setDraggingFase(null);
+                    }
+                  }}
+                >
                   {/* left col */}
                   <div
                     className={`sticky left-0 z-10 h-full bg-card border-r border-border flex items-center gap-2 pr-2 text-sm ${row.kind === "projeto" ? "font-bold" : ""}`}
                     style={{ width: LEFT_COL_W, paddingLeft: 12 + row.indent * 16 }}
                   >
+                    {canEdit && row.kind === "fase" && row.fase && (
+                      <span
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggingFase({ id: row.fase.id, projetoId: row.fase.projeto_id });
+                          e.dataTransfer.effectAllowed = "move";
+                          try { e.dataTransfer.setData("text/plain", row.fase.id); } catch { /* noop */ }
+                        }}
+                        onDragEnd={() => { setDraggingFase(null); setDragOverFase(null); }}
+                        className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+                        title="Arraste para reordenar"
+                      >
+                        <GripVertical className="h-3.5 w-3.5" />
+                      </span>
+                    )}
                     {row.kind === "fase" && row.bar && (
                       <button
                         className="text-muted-foreground hover:text-foreground"
