@@ -566,12 +566,19 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                 );
               }
               if (row.kind === "add-fase") {
+                const pFasesForRow = fasesByProjeto.get(row.projetoId!) ?? [];
+                const nextOrdem = pFasesForRow.length
+                  ? Math.max(...pFasesForRow.map((f) => Number(f.ordem) || 0)) + 1
+                  : 0;
                 return (
                   <div key={row.key} className="absolute inset-x-0 border-b border-border/50" style={{ top, height: ROW_H }}>
                     <div className="sticky left-0 z-10 h-full bg-card border-r border-border flex items-center" style={{ width: LEFT_COL_W, paddingLeft: 12 + row.indent * 16 }}>
                       <FaseForm
                         obraId={obraId}
                         projetoId={row.projetoId!}
+                        defaultOrdem={nextOrdem}
+                        defaultDataInicio={obraDataInicio ?? null}
+                        defaultDataFim={obraDataFim ?? null}
                         trigger={
                           <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:text-foreground">
                             <Plus className="h-3.5 w-3.5 mr-1" /> Nova fase
