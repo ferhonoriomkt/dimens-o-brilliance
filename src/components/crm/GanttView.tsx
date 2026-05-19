@@ -448,6 +448,9 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
 
   return (
     <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {reorderAnnounce}
+      </div>
       <div className="flex items-center justify-between p-3 border-b border-border">
         <h3 className="font-display font-bold">Gantt</h3>
         <div className="flex gap-1 items-center flex-wrap">
