@@ -639,7 +639,7 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
               return (
                 <div
                   key={row.key}
-                  className={`absolute inset-x-0 border-b border-border/50 ${
+                  className={`absolute inset-x-0 border-b border-border/50 transition-[top,background-color,opacity] duration-200 ease-out ${
                     row.kind === "fase" && dragOverFase === row.faseId && draggingFase && draggingFase.id !== row.faseId
                       ? "bg-primary/5 outline outline-1 outline-primary/40"
                       : ""
@@ -648,8 +648,8 @@ export function GanttView({ obraId, projetos, fases, itens, canEdit, canViewFina
                   {...(row.kind === "fase" && row.faseId
                     ? {
                         role: "listitem",
-                        "aria-label": `Fase ${row.idx ?? ""}: ${row.label}`,
-                        "aria-dropeffect": draggingFase && draggingFase.projetoId === row.fase?.projeto_id ? ("move" as const) : ("none" as const),
+                        "aria-roledescription": "Fase reordenável",
+                        "aria-label": `Fase ${row.idx ?? ""} de ${(fasesByProjeto.get(row.fase?.projeto_id) ?? []).length}: ${row.label}`,
                       }
                     : {})}
                   onDragOver={(e) => {
